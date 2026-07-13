@@ -1,143 +1,220 @@
 import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../context/AuthContext';
 import { Activity, ShieldAlert } from 'lucide-react';
+import { 
+  loginSchema, 
+  registerSchema, 
+} from '../features/auth/authSchemas';
+import type {
+  LoginInput, 
+  RegisterInput 
+} from '../features/auth/authSchemas';
+import styles from './Login.module.css';
 
 export const Login: React.FC = () => {
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
+  const loginForm = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
 
+  const registerForm = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const handleLoginSubmit = async (data: LoginInput) => {
+    setAuthError('');
+    setSuccessMessage('');
+    setLoading(true);
     try {
-      if (isRegister) {
-        await register({ email, password, firstName, lastName, phone });
-        setSuccess('Registration successful! You can now log in.');
-        setIsRegister(false);
-      } else {
-        await login(email, password);
-      }
+      await login(data.email, data.password);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Authentication failed. Please verify credentials.');
+      setAuthError(err.response?.data?.message || 'Authentication failed. Please verify credentials.');
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (data: RegisterInput) => {
+    setAuthError('');
+    setSuccessMessage('');
+    setLoading(true);
+    try {
+      await register({
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+      });
+      setSuccessMessage('Registration successful! You can now log in.');
+      setIsRegister(false);
+      registerForm.reset();
+    } catch (err: any) {
+      setAuthError(err.response?.data?.message || 'Registration failed. Verify email is unique.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div className="card" style={styles.card}>
-        <div style={styles.logoContainer}>
+    <div className={styles.container}>
+      <div className={`card ${styles.card}`}>
+        <div className={styles.logoContainer}>
           <Activity size={36} color="var(--primary)" />
-          <h2 style={styles.logoText}>HMS Redesign</h2>
+          <h2 className={styles.logoText}>HMS Redesign</h2>
         </div>
 
-        <h3 style={styles.subtitle}>
+        <h3 className={styles.subtitle}>
           {isRegister ? 'Create Patient Account' : 'Welcome back'}
         </h3>
-        <p style={styles.desc}>
+        <p className={styles.desc}>
           {isRegister 
             ? 'Sign up to manage your doctor appointments and medical bills' 
             : 'Sign in to access your dashboard'}
         </p>
 
-        {error && (
-          <div style={styles.errorBanner}>
+        {authError && (
+          <div className={styles.errorBanner}>
             <ShieldAlert size={20} color="var(--danger)" />
-            <span>{error}</span>
+            <span>{authError}</span>
           </div>
         )}
 
-        {success && (
-          <div style={styles.successBanner}>
-            <span>{success}</span>
+        {successMessage && (
+          <div className={styles.successBanner}>
+            <span>{successMessage}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {isRegister && (
-            <>
-              <div style={styles.row}>
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">First Name</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Last Name</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Phone Number</label>
+        {isRegister ? (
+          <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className={styles.form}>
+            <div className={styles.row}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">First Name</label>
                 <input
-                  type="tel"
+                  type="text"
                   className="form-input"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
+                  {...registerForm.register('firstName')}
                 />
+                {registerForm.formState.errors.firstName && (
+                  <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                    {registerForm.formState.errors.firstName.message}
+                  </span>
+                )}
               </div>
-            </>
-          )}
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Last Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  {...registerForm.register('lastName')}
+                />
+                {registerForm.formState.errors.lastName && (
+                  <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                    {registerForm.formState.errors.lastName.message}
+                  </span>
+                )}
+              </div>
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input
-              type="email"
-              className="form-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">Phone Number</label>
+              <input
+                type="tel"
+                className="form-input"
+                {...registerForm.register('phone')}
+              />
+              {registerForm.formState.errors.phone && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {registerForm.formState.errors.phone.message}
+                </span>
+              )}
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">Email Address</label>
+              <input
+                type="email"
+                className="form-input"
+                {...registerForm.register('email')}
+              />
+              {registerForm.formState.errors.email && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {registerForm.formState.errors.email.message}
+                </span>
+              )}
+            </div>
 
-          <button type="submit" className="btn btn-primary" style={styles.submitBtn} disabled={loading}>
-            {loading ? 'Processing...' : isRegister ? 'Register Account' : 'Sign In'}
-          </button>
-        </form>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                className="form-input"
+                {...registerForm.register('password')}
+              />
+              {registerForm.formState.errors.password && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {registerForm.formState.errors.password.message}
+                </span>
+              )}
+            </div>
 
-        <div style={styles.toggleContainer}>
+            <button type="submit" className={`btn btn-primary ${styles.submitBtn}`} disabled={loading}>
+              {loading ? 'Processing...' : 'Register Account'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className={styles.form}>
+            <div className="form-group">
+              <label className="form-label">Email Address</label>
+              <input
+                type="email"
+                className="form-input"
+                {...loginForm.register('email')}
+              />
+              {loginForm.formState.errors.email && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {loginForm.formState.errors.email.message}
+                </span>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                className="form-input"
+                {...loginForm.register('password')}
+              />
+              {loginForm.formState.errors.password && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {loginForm.formState.errors.password.message}
+                </span>
+              )}
+            </div>
+
+            <button type="submit" className={`btn btn-primary ${styles.submitBtn}`} disabled={loading}>
+              {loading ? 'Processing...' : 'Sign In'}
+            </button>
+          </form>
+        )}
+
+        <div className={styles.toggleContainer}>
           <button 
             type="button" 
-            style={styles.toggleLink} 
+            className={styles.toggleLink} 
             onClick={() => {
               setIsRegister(!isRegister);
-              setError('');
-              setSuccess('');
+              setAuthError('');
+              setSuccessMessage('');
+              loginForm.reset();
+              registerForm.reset();
             }}
           >
             {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
@@ -147,91 +224,4 @@ export const Login: React.FC = () => {
     </div>
   );
 };
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f1f5f9',
-    padding: '1.5rem',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '450px',
-    padding: '2.5rem',
-    borderRadius: '12px',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-  },
-  logoContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.75rem',
-    marginBottom: '1.5rem',
-  },
-  logoText: {
-    fontSize: '1.5rem',
-    fontWeight: 800,
-    color: 'var(--text-title)',
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: '1.25rem',
-    fontWeight: 700,
-    marginBottom: '0.25rem',
-  },
-  desc: {
-    textAlign: 'center',
-    fontSize: '0.875rem',
-    color: 'var(--text-muted)',
-    marginBottom: '2rem',
-  },
-  errorBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.75rem 1rem',
-    borderRadius: '6px',
-    backgroundColor: 'var(--danger-light)',
-    color: 'var(--danger)',
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    marginBottom: '1.5rem',
-  },
-  successBanner: {
-    padding: '0.75rem 1rem',
-    borderRadius: '6px',
-    backgroundColor: 'var(--success-light)',
-    color: 'var(--success)',
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    marginBottom: '1.5rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  row: {
-    display: 'flex',
-    gap: '1rem',
-  },
-  submitBtn: {
-    width: '100%',
-    padding: '0.85rem',
-    marginTop: '1rem',
-  },
-  toggleContainer: {
-    textAlign: 'center',
-    marginTop: '1.5rem',
-  },
-  toggleLink: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--primary)',
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-  },
-};
+export default Login;

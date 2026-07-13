@@ -61,11 +61,15 @@ const PageLoader: React.FC = () => (
   </div>
 );
 
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './services/queryClient';
+
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <Router>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Router>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Authentication Path */}
@@ -119,6 +123,7 @@ function App() {
           </Suspense>
         </Router>
       </AuthProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

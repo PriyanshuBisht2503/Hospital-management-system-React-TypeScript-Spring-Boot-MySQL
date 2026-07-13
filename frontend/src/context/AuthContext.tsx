@@ -1,7 +1,11 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { api } from '../services/api';
+import axios from 'axios';
+import { api, setAccessToken } from '../services/api';
+import { setCookie, getCookie, eraseCookie } from '../utils/cookie';
 
-interface User {
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '') + '/api/v1';
+
+export interface User {
   email: string;
   firstName: string;
   lastName: string;
@@ -25,14 +29,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('accessToken');
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const recoverSession = async () => {
+      const storedUser = localStorage.getItem('user');
+      const refreshToken = getCookie('refreshToken');
 
-    // Intercept global logout triggers from API client (e.g. on refresh fail)
+      if (storedUser && refreshToken) {
+        try {
+          // Perform silent token refresh immediately using base Axios (avoiding interceptors)
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
+
+          setAccessToken(newAccessToken);
+          if (newRefreshToken) {
+            setCookie('refreshToken', newRefreshToken, 7);
+          }
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          // Refresh failed: session expired or invalid. Clean up
+          setAccessToken(null);
+          eraseCookie('refreshToken');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      } else {
+        // No session to recover, clear details to preserve consistency
+        setAccessToken(null);
+        eraseCookie('refreshToken');
+        localStorage.removeItem('user');
+        setUser(null);
+      }
+      setLoading(false);
+    };
+
+    recoverSession();
+
     const handleLogoutEvent = () => {
       logout();
     };
@@ -48,20 +78,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const userProfile: User = { email: resEmail, firstName, lastName, roles, permissions };
 
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+    setAccessToken(accessToken);
+    setCookie('refreshToken', refreshToken, 7);
     localStorage.setItem('user', JSON.stringify(userProfile));
 
     setUser(userProfile);
   };
 
   const logout = () => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      api.post('/auth/logout', {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-    }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    // Call API logout endpoint (automatically uses interceptor Bearer token)
+    api.post('/auth/logout', {}).catch(() => {});
+    
+    setAccessToken(null);
+    eraseCookie('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
   };

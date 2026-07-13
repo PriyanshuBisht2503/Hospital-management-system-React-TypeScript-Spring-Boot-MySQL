@@ -1,151 +1,143 @@
-import React, { useEffect, useState } from 'react';
-import { api } from '../services/api';
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../context/AuthContext';
 import { CreditCard, Printer, ShieldAlert, CheckCircle } from 'lucide-react';
+import type { Invoice } from '../types';
+import { 
+  generateInvoiceSchema, 
+  recordPaymentSchema, 
+} from '../features/billing/billingSchemas';
+import type {
+  GenerateInvoiceInput, 
+  RecordPaymentInput 
+} from '../features/billing/billingSchemas';
+import { 
+  useInvoicesQuery, 
+  useGenerateInvoiceMutation, 
+  useRecordPaymentMutation 
+} from '../features/billing/useBilling';
+import { Skeleton } from '../components/ui/Skeleton';
+import { ErrorBoundaryWrapper } from '../components/ui/ErrorBoundaryWrapper';
+import styles from './Billing.module.css';
 
-interface Invoice {
-  id: number;
-  patient: {
-    id: number;
-    user: { firstName: string; lastName: string };
-  };
-  totalAmount: number;
-  taxAmount: number;
-  netAmount: number;
-  status: string;
-  dueDate: string;
-}
-
-export const Billing: React.FC = () => {
+const BillingContent: React.FC = () => {
   const { user } = useAuth();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
-
-  // Invoicing fields
-  const [appointmentId, setAppointmentId] = useState('');
-  const [fee, setFee] = useState('500.00'); // Standard default consultation fee
-
-  // Payment fields
   const [activePaymentInvoice, setActivePaymentInvoice] = useState<Invoice | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [transactionId, setTransactionId] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const isPatient = user?.roles.includes('ROLE_PATIENT');
   const canBilling = user?.roles.includes('ROLE_ADMIN') || user?.roles.includes('ROLE_RECEPTIONIST');
 
-  const loadInvoices = async () => {
+  // Load invoices registry (patientId=1 fallback default demo mapping)
+  const invoicesQuery = useInvoicesQuery(1);
+  const generateMutation = useGenerateInvoiceMutation(1);
+  const paymentMutation = useRecordPaymentMutation(1);
+
+  const invoices = invoicesQuery.data?.content || [];
+
+  const invoiceForm = useForm<GenerateInvoiceInput>({
+    resolver: zodResolver(generateInvoiceSchema),
+    defaultValues: {
+      fee: '500.00',
+    },
+  });
+
+  const paymentForm = useForm<RecordPaymentInput>({
+    resolver: zodResolver(recordPaymentSchema),
+    defaultValues: {
+      paymentMethod: 'CASH',
+    },
+  });
+
+  const onGenerateSubmit = async (formData: GenerateInvoiceInput) => {
+    setErrorMessage('');
+    setSuccessMessage('');
     try {
-      if (isPatient) {
-        // Patient role: query own invoices (patientId=1 default demo)
-        const res = await api.get('/billing/invoices/patient/1');
-        setInvoices(res.data.content || []);
-      } else {
-        // Staff: query general invoices. Defaulting to patientId=1
-        const res = await api.get('/billing/invoices/patient/1');
-        setInvoices(res.data.content || []);
-      }
-    } catch (err) {
-      setError('Failed to fetch billing invoicing history');
-    }
-  };
-
-  useEffect(() => {
-    loadInvoices();
-  }, []);
-
-  const handleGenerateInvoice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await api.post(`/billing/invoices/consultation?appointmentId=${appointmentId}&fee=${fee}`);
-      setSuccess('Consultation invoice generated successfully!');
+      await generateMutation.mutateAsync({
+        appointmentId: parseInt(formData.appointmentId),
+        fee: parseFloat(formData.fee),
+      });
+      setSuccessMessage('Consultation invoice generated successfully!');
       setShowGenerateForm(false);
-      loadInvoices();
-      setAppointmentId('');
+      invoiceForm.reset();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invoicing failed. Verify appointment ID is active and not duplicate.');
-    } finally {
-      setLoading(false);
+      setErrorMessage(err.response?.data?.message || 'Invoicing failed. Verify appointment ID is active and not duplicate.');
     }
   };
 
-  const handleRecordPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onPaymentSubmit = async (formData: RecordPaymentInput) => {
     if (!activePaymentInvoice) return;
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
+    setErrorMessage('');
+    setSuccessMessage('');
+    
     const payload = {
       invoiceId: activePaymentInvoice.id,
       amount: activePaymentInvoice.netAmount,
-      paymentMethod,
-      transactionId: transactionId || 'TXN-' + Date.now(),
+      paymentMethod: formData.paymentMethod,
+      transactionId: formData.transactionId || 'TXN-' + Date.now(),
     };
 
     try {
-      await api.post('/billing/payments', payload);
-      setSuccess('Payment successfully processed & reconciled via gateway!');
+      await paymentMutation.mutateAsync(payload);
+      setSuccessMessage('Payment successfully processed & reconciled via gateway!');
       setActivePaymentInvoice(null);
-      setTransactionId('');
-      loadInvoices();
+      paymentForm.reset();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Payment processing failed');
-    } finally {
-      setLoading(false);
+      setErrorMessage(err.response?.data?.message || 'Payment processing failed');
     }
   };
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.headerText}>
-          <h1 style={styles.title}>Invoicing & Payments</h1>
-          <p style={styles.subtitle}>Track patient invoices, processing fees, and payment settlements.</p>
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <div className={styles.headerText}>
+          <h1 className={styles.title}>Invoicing & Payments</h1>
+          <p className={styles.subtitle}>Track patient invoices, processing fees, and payment settlements.</p>
         </div>
         {canBilling && (
-          <button className="btn btn-primary" onClick={() => setShowGenerateForm(!showGenerateForm)}>
+          <button className="btn btn-primary" onClick={() => {
+            setShowGenerateForm(!showGenerateForm);
+            setActivePaymentInvoice(null);
+          }}>
             <CreditCard size={18} />
             <span>{showGenerateForm ? 'View Invoices' : 'Generate Invoice'}</span>
           </button>
         )}
       </header>
 
-      {error && (
-        <div className="badge-danger" style={styles.errorBox}>
+      {(errorMessage || invoicesQuery.isError) && (
+        <div className={`badge-danger ${styles.errorBox}`}>
           <ShieldAlert size={18} />
-          <span>{error}</span>
+          <span>{errorMessage || 'Failed to fetch billing invoices history'}</span>
         </div>
       )}
 
-      {success && (
-        <div className="badge-success" style={styles.errorBox}>
+      {successMessage && (
+        <div className={`badge-success ${styles.errorBox}`}>
           <CheckCircle size={18} />
-          <span>{success}</span>
+          <span>{successMessage}</span>
         </div>
       )}
 
       {showGenerateForm ? (
-        <div className="card" style={styles.formCard}>
-          <h3 style={styles.formTitle}>Generate Consultation Invoice</h3>
-          <form onSubmit={handleGenerateInvoice} style={styles.form}>
+        <div className={`card ${styles.formCard}`}>
+          <h3 className={styles.formTitle}>Generate Consultation Invoice</h3>
+          <form onSubmit={invoiceForm.handleSubmit(onGenerateSubmit)} className={styles.form}>
             <div className="form-group">
               <label className="form-label">Appointment ID</label>
               <input
                 type="number"
                 className="form-input"
                 placeholder="Enter confirmed appointment reference ID..."
-                value={appointmentId}
-                onChange={e => setAppointmentId(e.target.value)}
-                required
+                {...invoiceForm.register('appointmentId')}
               />
+              {invoiceForm.formState.errors.appointmentId && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {invoiceForm.formState.errors.appointmentId.message}
+                </span>
+              )}
             </div>
 
             <div className="form-group">
@@ -153,33 +145,41 @@ export const Billing: React.FC = () => {
               <input
                 type="number"
                 className="form-input"
-                value={fee}
-                onChange={e => setFee(e.target.value)}
-                required
+                {...invoiceForm.register('fee')}
               />
+              {invoiceForm.formState.errors.fee && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {invoiceForm.formState.errors.fee.message}
+                </span>
+              )}
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }} disabled={loading}>
-              {loading ? 'Processing tax equations...' : 'Generate Bill'}
+            <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }} disabled={invoiceForm.formState.isSubmitting || generateMutation.isPending}>
+              {invoiceForm.formState.isSubmitting || generateMutation.isPending ? 'Processing tax equations...' : 'Generate Bill'}
             </button>
           </form>
         </div>
       ) : activePaymentInvoice ? (
-        <div className="card" style={styles.formCard}>
-          <h3 style={styles.formTitle}>Process Payment Gateway charge</h3>
+        <div className={`card ${styles.formCard}`}>
+          <h3 className={styles.formTitle}>Process Payment Gateway charge</h3>
           <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
             Processing transaction for Invoice #{activePaymentInvoice.id} of Patient: {activePaymentInvoice.patient.user.firstName} {activePaymentInvoice.patient.user.lastName}.
             Net settlement amount: <strong>INR {activePaymentInvoice.netAmount}</strong> (includes 18% GST).
           </p>
-          <form onSubmit={handleRecordPayment} style={styles.form}>
+          <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className={styles.form}>
             <div className="form-group">
               <label className="form-label">Payment Method</label>
-              <select className="form-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+              <select className="form-input" {...paymentForm.register('paymentMethod')}>
                 <option value="CASH">Cash</option>
                 <option value="CARD">Debit/Credit Card</option>
                 <option value="UPI">UPI/Digital Transfer</option>
                 <option value="INSURANCE">Insurance Settlement</option>
               </select>
+              {paymentForm.formState.errors.paymentMethod && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {paymentForm.formState.errors.paymentMethod.message}
+                </span>
+              )}
             </div>
 
             <div className="form-group">
@@ -188,14 +188,13 @@ export const Billing: React.FC = () => {
                 type="text"
                 className="form-input"
                 placeholder="Auto-generated if blank..."
-                value={transactionId}
-                onChange={e => setTransactionId(e.target.value)}
+                {...paymentForm.register('transactionId')}
               />
             </div>
 
-            <div style={styles.row}>
-              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
-                {loading ? 'Processing charge gateway...' : 'Submit Payment'}
+            <div className={styles.row}>
+              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={paymentForm.formState.isSubmitting || paymentMutation.isPending}>
+                {paymentForm.formState.isSubmitting || paymentMutation.isPending ? 'Processing charge gateway...' : 'Submit Payment'}
               </button>
               <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setActivePaymentInvoice(null)}>
                 Cancel
@@ -204,121 +203,80 @@ export const Billing: React.FC = () => {
           </form>
         </div>
       ) : (
-        <div style={styles.listContainer}>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Invoice ID</th>
-                  <th>Patient</th>
-                  <th>Base Fee</th>
-                  <th>GST (18%)</th>
-                  <th>Net Bill</th>
-                  <th>Due Date</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.length > 0 ? (
-                  invoices.map(inv => (
-                    <tr key={inv.id}>
-                      <td>#{inv.id}</td>
-                      <td style={{ fontWeight: 600 }}>
-                        {inv.patient.user.firstName} {inv.patient.user.lastName}
-                      </td>
-                      <td>INR {inv.totalAmount}</td>
-                      <td>INR {inv.taxAmount}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--text-title)' }}>INR {inv.netAmount}</td>
-                      <td>{inv.dueDate}</td>
-                      <td>
-                        <span className={`badge ${inv.status === 'PAID' ? 'badge-success' : inv.status === 'PARTIALLY_PAID' ? 'badge-warning' : 'badge-danger'}`}>
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td>
-                        {inv.status !== 'PAID' && canBilling ? (
-                          <button className="btn btn-primary" onClick={() => setActivePaymentInvoice(inv)} style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
-                            Record Payment
-                          </button>
-                        ) : (
-                          <button className="btn btn-outline" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => window.print()}>
-                            <Printer size={14} />
-                          </button>
-                        )}
+        <div className={styles.listContainer}>
+          {invoicesQuery.isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+              <Skeleton height="40px" />
+              <Skeleton height="50px" />
+              <Skeleton height="50px" />
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Invoice ID</th>
+                    <th>Patient</th>
+                    <th>Base Fee</th>
+                    <th>GST (18%)</th>
+                    <th>Net Bill</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.length > 0 ? (
+                    invoices.map(inv => (
+                      <tr key={inv.id}>
+                        <td>#{inv.id}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {inv.patient.user.firstName} {inv.patient.user.lastName}
+                        </td>
+                        <td>INR {inv.totalAmount}</td>
+                        <td>INR {inv.taxAmount}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-title)' }}>INR {inv.netAmount}</td>
+                        <td>{inv.dueDate}</td>
+                        <td>
+                          <span className={`badge ${inv.status === 'PAID' ? 'badge-success' : inv.status === 'PARTIALLY_PAID' ? 'badge-warning' : 'badge-danger'}`}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td>
+                          {inv.status !== 'PAID' && canBilling ? (
+                            <button className="btn btn-primary" onClick={() => setActivePaymentInvoice(inv)} style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
+                              Record Payment
+                            </button>
+                          ) : (
+                            <button className="btn btn-outline" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => window.print()}>
+                              <Printer size={14} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                        No billing invoices found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                      No billing invoices found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerText: {
-    textAlign: 'left',
-  },
-  title: {
-    fontSize: '1.75rem',
-    fontWeight: 800,
-  },
-  subtitle: {
-    fontSize: '0.9rem',
-    color: 'var(--text-muted)',
-    marginTop: '0.25rem',
-  },
-  errorBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.75rem 1rem',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: '0.875rem',
-    fontWeight: 600,
-  },
-  listContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  formCard: {
-    textAlign: 'left',
-    padding: '2.5rem',
-  },
-  formTitle: {
-    fontSize: '1.25rem',
-    fontWeight: 700,
-    marginBottom: '1.5rem',
-    color: 'var(--text-title)',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-  },
-  row: {
-    display: 'flex',
-    gap: '1.5rem',
-  },
+export const Billing: React.FC = () => {
+  return (
+    <ErrorBoundaryWrapper name="BillingFeature">
+      <BillingContent />
+    </ErrorBoundaryWrapper>
+  );
 };
+export default Billing;
