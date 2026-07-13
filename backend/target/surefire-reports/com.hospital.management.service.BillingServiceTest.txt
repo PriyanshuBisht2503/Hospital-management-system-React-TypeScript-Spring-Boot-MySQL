@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.hospital.management.service.BillingServiceTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.190 s -- in com.hospital.management.service.BillingServiceTest
