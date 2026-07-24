@@ -4,14 +4,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Lazy Loaded Pages for performance bundle split code optimization
+
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Patients = lazy(() => import('./pages/Patients').then(m => ({ default: m.Patients })));
 const Appointments = lazy(() => import('./pages/Appointments').then(m => ({ default: m.Appointments })));
 const Billing = lazy(() => import('./pages/Billing').then(m => ({ default: m.Billing })));
 
-// Enhanced Protected Route with Client-side Role Guards
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
@@ -34,14 +34,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   if (allowedRoles && user && !user.roles.some(role => allowedRoles.includes(role))) {
-    // Redirect unauthorized role attempts to home dashboard
+    
     return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
 };
 
-// Authenticated Layout Wrapper
+
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="app-container">
@@ -53,7 +53,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-// Standard Loading Fallback for Suspense Code Splitting
+
 const PageLoader: React.FC = () => (
   <div style={styles.loadingContainer}>
     <div style={styles.spinner}></div>
