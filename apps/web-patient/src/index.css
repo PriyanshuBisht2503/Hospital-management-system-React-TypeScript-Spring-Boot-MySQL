@@ -1,0 +1,12 @@
+@import '@hms/ui/styles.css';
+
+:root {
+  font-family: 'Plus Jakarta Sans', var(--font-sans);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
