@@ -1,15 +1,14 @@
 package com.hms.api.service;
 
 import com.hms.api.domain.RefreshToken;
-import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
 import com.hms.api.dto.AuthResponse;
 import com.hms.api.dto.LoginRequest;
 import com.hms.api.dto.UserSummaryDto;
-import com.hms.api.exception.AccountLockedException;
 import com.hms.api.exception.InvalidTokenException;
 import com.hms.api.repository.RefreshTokenRepository;
 import com.hms.api.repository.UserRepository;
+import com.hms.api.security.ClientIpResolver;
 import com.hms.api.security.JwtTokenProvider;
 import com.hms.api.security.SecurityUser;
 import jakarta.servlet.http.Cookie;
@@ -37,12 +36,14 @@ public class AuthService {
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
     private static final long REFRESH_EXPIRY_DAYS = 7;
+    private static final int REFRESH_RACE_GRACE_WINDOW_SECONDS = 10;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final AuditLogService auditLogService;
+    private final ClientIpResolver clientIpResolver;
 
     @Value("${app.jwt.cookie.secure:false}")
     private boolean cookieSecure;
@@ -52,22 +53,25 @@ public class AuthService {
         RefreshTokenRepository refreshTokenRepository,
         PasswordEncoder passwordEncoder,
         JwtTokenProvider tokenProvider,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        ClientIpResolver clientIpResolver
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.auditLogService = auditLogService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     /**
      * Staff & user login with email and password.
      * Prevents account enumeration by providing uniform error response times and messages.
+     * Locked accounts return identical generic response as bad credentials; lockout logged in audit only.
      */
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpReq, HttpServletResponse httpRes) {
-        String clientIp = AuditLogService.getClientIp(httpReq);
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
         String email = request.email() != null ? request.email().trim().toLowerCase() : "";
 
         // Enforce minimum password length
@@ -87,10 +91,16 @@ public class AuthService {
 
         User user = userOpt.get();
 
-        // Check account lock
+        // Check account lock: Return identical generic message as bad password to prevent enumeration
         if (user.isAccountLocked()) {
             auditLogService.log(user.getId(), "LOGIN_BLOCKED", "USER", String.valueOf(user.getId()), clientIp, "Account is locked until " + user.getLockedUntil());
-            throw new AccountLockedException("Account is temporarily locked due to multiple failed login attempts. Please try again after " + user.getLockedUntil());
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
+        // Check disabled: Return identical generic message
+        if (!user.isEnabled()) {
+            auditLogService.log(user.getId(), "LOGIN_FAILED", "USER", String.valueOf(user.getId()), clientIp, "Disabled account attempted login");
+            throw new BadCredentialsException("Invalid email or password");
         }
 
         // Verify password
@@ -109,13 +119,7 @@ public class AuthService {
             throw new BadCredentialsException("Invalid email or password");
         }
 
-        // Check enabled
-        if (!user.isEnabled()) {
-            auditLogService.log(user.getId(), "LOGIN_FAILED", "USER", String.valueOf(user.getId()), clientIp, "Disabled account attempted login");
-            throw new BadCredentialsException("Account is disabled. Please contact administrator.");
-        }
-
-        // Reset failed login count upon successful credentials
+        // Reset failed login count and lockout upon successful credentials
         user.setFailedLoginCount(0);
         user.setLockedUntil(null);
         userRepository.save(user);
@@ -147,12 +151,13 @@ public class AuthService {
     /**
      * Rotates refresh token:
      * - Verifies existing refresh token
-     * - Reusing a revoked token triggers revocation of ALL refresh tokens for that user
-     * - Revokes used token and issues new access token + new refresh token in cookie
+     * - Reusing a revoked token within the 10-second grace window is treated as a race condition, not an attack
+     * - Reusing a revoked token outside the 10-second grace window triggers revocation of ALL refresh tokens
+     * - Rechecks that user is enabled in the DB and issues new access token with the current DB role
      */
     @Transactional
     public AuthResponse refreshToken(String rawRefreshToken, HttpServletRequest httpReq, HttpServletResponse httpRes) {
-        String clientIp = AuditLogService.getClientIp(httpReq);
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
 
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
             throw new InvalidTokenException("Missing refresh token");
@@ -168,10 +173,30 @@ public class AuthService {
         }
 
         RefreshToken token = tokenOpt.get();
-        User user = token.getUser();
 
-        // Critical Security Requirement: Reusing a revoked refresh token revokes all refresh tokens for that user
+        // Reload fresh user from DB to guarantee current state and role
+        User user = userRepository.findById(token.getUser().getId())
+            .orElseThrow(() -> new InvalidTokenException("User record not found"));
+
+        // Recheck enabled status on refresh
+        if (!user.isEnabled() || user.isAccountLocked()) {
+            clearRefreshCookie(httpRes);
+            auditLogService.log(user.getId(), "TOKEN_REFRESH_FAILED", "USER", String.valueOf(user.getId()), clientIp, "Disabled or locked user attempted token refresh");
+            throw new InvalidTokenException("Account is disabled or locked. Please contact administrator.");
+        }
+
+        // Handle revoked token: check 10-second grace window for race condition
         if (token.isRevoked()) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime revokedAt = token.getRevokedAt();
+            boolean withinGraceWindow = revokedAt != null && revokedAt.isAfter(now.minusSeconds(REFRESH_RACE_GRACE_WINDOW_SECONDS));
+
+            if (withinGraceWindow) {
+                auditLogService.log(user.getId(), "TOKEN_REFRESH_RACE", "USER", String.valueOf(user.getId()), clientIp, "Refresh token rotated within 10s grace window");
+                clearRefreshCookie(httpRes);
+                throw new InvalidTokenException("Refresh token was recently rotated. Please retry with latest credentials.");
+            }
+
             auditLogService.log(user.getId(), "TOKEN_REUSE_ATTACK", "USER", String.valueOf(user.getId()), clientIp, "Revoked refresh token reuse detected! Revoking all sessions.");
             refreshTokenRepository.revokeAllByUser(user);
             clearRefreshCookie(httpRes);
@@ -184,11 +209,12 @@ public class AuthService {
             throw new InvalidTokenException("Refresh token has expired. Please log in again.");
         }
 
-        // Revoke the current token (Rotation)
+        // Revoke the current token with timestamp (Rotation)
         token.setRevoked(true);
+        token.setRevokedAt(LocalDateTime.now());
         refreshTokenRepository.save(token);
 
-        // Issue new tokens
+        // Issue new tokens with current role from database
         String newAccessToken = tokenProvider.generateAccessToken(user);
         String newRawRefreshToken = tokenProvider.generateRawRefreshToken();
         String newHashedRefreshToken = tokenProvider.hashToken(newRawRefreshToken);
@@ -216,7 +242,7 @@ public class AuthService {
      */
     @Transactional
     public void logout(String rawRefreshToken, HttpServletRequest httpReq, HttpServletResponse httpRes) {
-        String clientIp = AuditLogService.getClientIp(httpReq);
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
         Long userId = null;
 
         if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
@@ -225,6 +251,7 @@ public class AuthService {
             if (tokenOpt.isPresent()) {
                 RefreshToken token = tokenOpt.get();
                 token.setRevoked(true);
+                token.setRevokedAt(LocalDateTime.now());
                 refreshTokenRepository.save(token);
                 userId = token.getUser().getId();
             }
@@ -242,6 +269,10 @@ public class AuthService {
 
         User user = userRepository.findById(securityUser.getId())
                 .orElseThrow(() -> new InvalidTokenException("User record not found"));
+
+        if (!user.isEnabled() || user.isAccountLocked()) {
+            throw new InvalidTokenException("User account is inactive or locked");
+        }
 
         return UserSummaryDto.fromEntity(user);
     }

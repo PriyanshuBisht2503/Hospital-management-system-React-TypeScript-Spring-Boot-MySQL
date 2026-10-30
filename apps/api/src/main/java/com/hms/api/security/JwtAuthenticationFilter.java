@@ -1,6 +1,7 @@
 package com.hms.api.security;
 
-import com.hms.api.domain.Role;
+import com.hms.api.domain.User;
+import com.hms.api.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,16 +16,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, UserDetailsServiceImpl userDetailsService) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, UserRepository userRepository) {
         this.tokenProvider = tokenProvider;
-        this.userDetailsService = userDetailsService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -38,20 +40,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
             try {
                 Long userId = tokenProvider.getUserIdFromToken(token);
-                Role role = tokenProvider.getRoleFromToken(token);
+                if (userId != null) {
+                    Optional<User> userOpt = userRepository.findById(userId);
 
-                var userDetails = userDetailsService.loadUserById(userId);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
 
-                if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
-                    var auth = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()))
-                    );
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                        // Reject request if user is disabled or account is locked
+                        if (user.isEnabled() && !user.isAccountLocked()) {
+                            SecurityUser securityUser = new SecurityUser(user);
+                            // Use role from the database, NOT from the token
+                            var auth = new UsernamePasswordAuthenticationToken(
+                                securityUser,
+                                null,
+                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                            );
+                            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                            SecurityContextHolder.getContext().setAuthentication(auth);
+                        } else {
+                            SecurityContextHolder.clearContext();
+                        }
+                    } else {
+                        SecurityContextHolder.clearContext();
+                    }
                 }
             } catch (Exception e) {
+                SecurityContextHolder.clearContext();
                 logger.debug("Could not authenticate user from token: " + e.getMessage());
             }
         }

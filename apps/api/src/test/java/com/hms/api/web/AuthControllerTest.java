@@ -143,7 +143,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Account lockout after 5 consecutive failed logins (15 min lock)")
+    @DisplayName("Account lockout after 5 failures returns generic 401 response; audit log records lockout")
     void accountLockoutAfterFiveFailures() throws Exception {
         LoginRequest badReq = new LoginRequest("doctor.test@aster.ae", "WrongPassword123");
 
@@ -158,21 +158,108 @@ class AuthControllerTest {
         assertThat(lockedUser.getFailedLoginCount()).isEqualTo(5);
         assertThat(lockedUser.isAccountLocked()).isTrue();
 
-        // 6th attempt should be blocked with 403 Forbidden
+        // 6th attempt returns identical generic 401 response (no enumeration)
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(badReq)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("temporarily locked")));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
 
         List<AuditLog> logs = auditLogRepository.findAll();
         assertThat(logs).anyMatch(l -> "ACCOUNT_LOCKED".equals(l.getAction()));
+        assertThat(logs).anyMatch(l -> "LOGIN_BLOCKED".equals(l.getAction()));
+    }
+
+    @Test
+    @DisplayName("Lockout expires after 15 minutes allowing successful login and resetting counters")
+    void lockoutExpiresAfterFifteenMinutes() throws Exception {
+        testDoctor.setFailedLoginCount(5);
+        testDoctor.setLockedUntil(LocalDateTime.now().minusMinutes(1)); // Lockout elapsed
+        userRepository.save(testDoctor);
+
+        LoginRequest validReq = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(validReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        User reloaded = userRepository.findById(testDoctor.getId()).orElseThrow();
+        assertThat(reloaded.getFailedLoginCount()).isEqualTo(0);
+        assertThat(reloaded.getLockedUntil()).isNull();
+    }
+
+    @Test
+    @DisplayName("Disabled user cannot log in and receives identical generic 401 response")
+    void disabledUserCannotLogIn() throws Exception {
+        testDoctor.setEnabled(false);
+        userRepository.save(testDoctor);
+
+        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
+
+        List<AuditLog> logs = auditLogRepository.findAll();
+        assertThat(logs).anyMatch(l -> "LOGIN_FAILED".equals(l.getAction()));
+    }
+
+    @Test
+    @DisplayName("Existing valid access token stops working immediately when user is disabled in database")
+    void existingTokenStopsWorkingWhenUserIsDisabled() throws Exception {
+        String token = jwtTokenProvider.generateAccessToken(testDoctor);
+
+        // Verify token works initially
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        // Disable user in DB
+        testDoctor.setEnabled(false);
+        userRepository.save(testDoctor);
+
+        // Same token is now rejected on next request
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Protected endpoint without token returns 401 Unauthorized")
+    void protectedEndpointWithoutTokenReturns401() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    @DisplayName("Expired access token returns 401 Unauthorized")
+    void expiredAccessTokenReturns401() throws Exception {
+        String expiredToken = jwtTokenProvider.generateAccessToken(testDoctor, -1000);
+
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + expiredToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Tampered access token returns 401 Unauthorized")
+    void tamperedAccessTokenReturns401() throws Exception {
+        String validToken = jwtTokenProvider.generateAccessToken(testDoctor);
+        String tamperedToken = validToken.substring(0, validToken.length() - 5) + "xyz99";
+
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + tamperedToken))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Refresh token rotation: issues new access token & new cookie, revoking old token")
     void refreshTokenRotation() throws Exception {
-        // Initial login
         LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -195,10 +282,11 @@ class AuthControllerTest {
         assertThat(refreshCookie2).isNotNull();
         assertThat(refreshCookie2.getValue()).isNotEqualTo(refreshCookie1.getValue());
 
-        // Verify old token is now revoked in database
+        // Verify old token is now revoked in database with timestamp
         String oldHash = jwtTokenProvider.hashToken(refreshCookie1.getValue());
         RefreshToken oldToken = refreshTokenRepository.findByTokenHash(oldHash).orElseThrow();
         assertThat(oldToken.isRevoked()).isTrue();
+        assertThat(oldToken.getRevokedAt()).isNotNull();
 
         // Verify new token is valid in database
         String newHash = jwtTokenProvider.hashToken(refreshCookie2.getValue());
@@ -207,9 +295,39 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Reusing a revoked refresh token triggers revocation of ALL refresh tokens for that user")
-    void revokedRefreshTokenReuseRevokesAllUserSessions() throws Exception {
-        // 1. Login twice to create 2 active refresh tokens
+    @DisplayName("Refresh race: reuse within 10-second grace window is treated as race, NOT reuse attack")
+    void refreshRaceWithinGraceWindowDoesNotRevokeAllSessions() throws Exception {
+        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andReturn();
+        Cookie cookie1 = loginResult.getResponse().getCookie("hms_refresh_token");
+
+        // Rotate once (cookie1 is revoked, revokedAt is set to now)
+        mockMvc.perform(post("/api/auth/refresh")
+                .cookie(cookie1))
+                .andExpect(status().isOk());
+
+        // Reusing cookie1 within grace window (just rotated a split second ago)
+        mockMvc.perform(post("/api/auth/refresh")
+                .cookie(cookie1))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("recently rotated")));
+
+        // Verify active sessions for this user were NOT wiped out
+        List<RefreshToken> allTokens = refreshTokenRepository.findAll();
+        assertThat(allTokens).anyMatch(t -> !t.isRevoked());
+
+        List<AuditLog> logs = auditLogRepository.findAll();
+        assertThat(logs).anyMatch(l -> "TOKEN_REFRESH_RACE".equals(l.getAction()));
+        assertThat(logs).noneMatch(l -> "TOKEN_REUSE_ATTACK".equals(l.getAction()));
+    }
+
+    @Test
+    @DisplayName("Reusing a revoked refresh token outside 10s grace window revokes ALL refresh tokens for user")
+    void revokedRefreshTokenReuseOutsideGraceWindowRevokesAllUserSessions() throws Exception {
+        // 1. Login twice
         LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
         MvcResult login1 = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -217,31 +335,67 @@ class AuthControllerTest {
                 .andReturn();
         Cookie cookie1 = login1.getResponse().getCookie("hms_refresh_token");
 
-        MvcResult login2 = mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
                 .andReturn();
-        Cookie cookie2 = login2.getResponse().getCookie("hms_refresh_token");
 
-        // 2. Rotate cookie1 once (this revokes cookie1)
+        // 2. Rotate cookie1 once
         mockMvc.perform(post("/api/auth/refresh")
                 .cookie(cookie1))
                 .andExpect(status().isOk());
 
-        // 3. Malicious actor reuses old cookie1 (revoked token reuse attack!)
+        // 3. Simulate elapsed grace window by adjusting revokedAt to 15 seconds ago
+        String hash1 = jwtTokenProvider.hashToken(cookie1.getValue());
+        RefreshToken rotatedToken = refreshTokenRepository.findByTokenHash(hash1).orElseThrow();
+        rotatedToken.setRevokedAt(LocalDateTime.now().minusSeconds(15));
+        refreshTokenRepository.save(rotatedToken);
+
+        // 4. Malicious actor reuses old cookie1 outside grace window
         mockMvc.perform(post("/api/auth/refresh")
                 .cookie(cookie1))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Revoked refresh token reuse detected")));
 
-        // 4. Verify all refresh tokens for this user are now revoked in DB
+        // 5. Verify all refresh tokens for this user are now revoked in DB
         List<RefreshToken> allTokens = refreshTokenRepository.findAll();
         assertThat(allTokens).isNotEmpty();
         assertThat(allTokens).allMatch(RefreshToken::isRevoked);
 
-        // 5. Verify security audit log recorded the attack
         List<AuditLog> logs = auditLogRepository.findAll();
         assertThat(logs).anyMatch(l -> "TOKEN_REUSE_ATTACK".equals(l.getAction()));
+    }
+
+    @Test
+    @DisplayName("Client IP resolution ignores spoofed X-Forwarded-For when trust-proxy-headers is false")
+    void clientIpIgnoresSpoofedXForwardedFor() throws Exception {
+        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "WrongPassword123");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-Forwarded-For", "203.0.113.195")
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized());
+
+        List<AuditLog> logs = auditLogRepository.findAll();
+        assertThat(logs).anyMatch(l -> "LOGIN_FAILED".equals(l.getAction()) && "127.0.0.1".equals(l.getIp()));
+    }
+
+    @Test
+    @DisplayName("Long email truncates safely in audit log without overflowing 50-char column")
+    void longEmailTruncatesInAuditLog() throws Exception {
+        String longEmail = "averylongnonexistentemailaddressfortestingoverlowexceeding50chars@aster.ae";
+        LoginRequest req = new LoginRequest(longEmail, "WrongPassword123");
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized());
+
+        List<AuditLog> logs = auditLogRepository.findAll();
+        assertThat(logs).anyMatch(l -> "LOGIN_FAILED".equals(l.getAction()) &&
+                l.getEntityId().length() <= 50 &&
+                longEmail.startsWith(l.getEntityId()));
     }
 
     @Test
@@ -269,13 +423,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/auth/me returns current user profile when authenticated, 403 when unauthenticated")
+    @DisplayName("GET /api/auth/me returns current user profile when authenticated")
     void getMeEndpoint() throws Exception {
-        // Without token -> 403 Forbidden
-        mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isForbidden());
-
-        // With valid access token
         String accessToken = jwtTokenProvider.generateAccessToken(testDoctor);
 
         mockMvc.perform(get("/api/auth/me")

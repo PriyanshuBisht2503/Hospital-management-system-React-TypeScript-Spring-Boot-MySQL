@@ -37,8 +37,12 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(User user) {
+        return generateAccessToken(user, accessTokenExpirationMs);
+    }
+
+    public String generateAccessToken(User user, long customExpirationMs) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + accessTokenExpirationMs);
+        Date expiryDate = new Date(now.getTime() + customExpirationMs);
 
         return Jwts.builder()
                 .subject(String.valueOf(user.getId()))
