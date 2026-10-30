@@ -57,12 +57,16 @@ class AuthControllerTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
+    private com.hms.api.security.RateLimiterService rateLimiterService;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     private User testDoctor;
 
     @BeforeEach
     void setUp() {
+        rateLimiterService.clear();
         refreshTokenRepository.deleteAll();
         auditLogRepository.deleteAll();
         userRepository.deleteAll();

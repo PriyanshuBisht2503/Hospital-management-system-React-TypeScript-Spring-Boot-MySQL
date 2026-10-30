@@ -1,15 +1,20 @@
 package com.hms.api.service;
 
+import com.hms.api.domain.OtpCode;
+import com.hms.api.domain.PasswordResetToken;
 import com.hms.api.domain.RefreshToken;
+import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
-import com.hms.api.dto.AuthResponse;
-import com.hms.api.dto.LoginRequest;
-import com.hms.api.dto.UserSummaryDto;
+import com.hms.api.dto.*;
+import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.InvalidTokenException;
+import com.hms.api.repository.OtpCodeRepository;
+import com.hms.api.repository.PasswordResetTokenRepository;
 import com.hms.api.repository.RefreshTokenRepository;
 import com.hms.api.repository.UserRepository;
 import com.hms.api.security.ClientIpResolver;
 import com.hms.api.security.JwtTokenProvider;
+import com.hms.api.security.RateLimiterService;
 import com.hms.api.security.SecurityUser;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -37,13 +43,21 @@ public class AuthService {
     private static final int LOCKOUT_MINUTES = 15;
     private static final long REFRESH_EXPIRY_DAYS = 7;
     private static final int REFRESH_RACE_GRACE_WINDOW_SECONDS = 10;
+    private static final int OTP_EXPIRY_MINUTES = 5;
+    private static final int MAX_OTP_ATTEMPTS = 5;
+    private static final int PASSWORD_RESET_EXPIRY_MINUTES = 15;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final OtpCodeRepository otpCodeRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final AuditLogService auditLogService;
     private final ClientIpResolver clientIpResolver;
+    private final RateLimiterService rateLimiterService;
+    private final EmailService emailService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.jwt.cookie.secure:false}")
     private boolean cookieSecure;
@@ -51,28 +65,41 @@ public class AuthService {
     public AuthService(
         UserRepository userRepository,
         RefreshTokenRepository refreshTokenRepository,
+        OtpCodeRepository otpCodeRepository,
+        PasswordResetTokenRepository passwordResetTokenRepository,
         PasswordEncoder passwordEncoder,
         JwtTokenProvider tokenProvider,
         AuditLogService auditLogService,
-        ClientIpResolver clientIpResolver
+        ClientIpResolver clientIpResolver,
+        RateLimiterService rateLimiterService,
+        EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.otpCodeRepository = otpCodeRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.auditLogService = auditLogService;
         this.clientIpResolver = clientIpResolver;
+        this.rateLimiterService = rateLimiterService;
+        this.emailService = emailService;
     }
 
     /**
      * Staff & user login with email and password.
      * Prevents account enumeration by providing uniform error response times and messages.
      * Locked accounts return identical generic response as bad credentials; lockout logged in audit only.
+     * Rate limited by client IP and attempted email target.
      */
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpReq, HttpServletResponse httpRes) {
         String clientIp = clientIpResolver.resolveClientIp(httpReq);
         String email = request.email() != null ? request.email().trim().toLowerCase() : "";
+
+        // Bucket4j Rate Limiting: Keyed by Client IP and Attempted Email
+        rateLimiterService.checkLoginIpLimit(clientIp);
+        rateLimiterService.checkLoginEmailLimit(email);
 
         // Enforce minimum password length
         if (request.password() == null || request.password().length() < 8) {
@@ -146,6 +173,265 @@ public class AuthService {
             tokenProvider.getAccessTokenExpirationMs() / 1000,
             UserSummaryDto.fromEntity(user)
         );
+    }
+
+    /**
+     * Sends OTP code for patient authentication.
+     * Uniform response to prevent account enumeration.
+     * Rate limited by client IP.
+     */
+    @Transactional
+    public MessageResponse sendOtp(OtpSendRequest request, HttpServletRequest httpReq) {
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
+        rateLimiterService.checkOtpLimit(clientIp);
+
+        String target = request.target() != null ? request.target().trim().toLowerCase() : "";
+        if (target.isEmpty()) {
+            throw new BadRequestException("Target (email or phone) is required");
+        }
+
+        // Delete any existing OTPs for this target
+        otpCodeRepository.deleteByTarget(target);
+
+        // Generate 6-digit numeric OTP
+        int codeInt = secureRandom.nextInt(1_000_000);
+        String rawCode = String.format("%06d", codeInt);
+        String codeHash = tokenProvider.hashToken(rawCode);
+
+        OtpCode otpCode = new OtpCode(
+            target,
+            codeHash,
+            LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES)
+        );
+        otpCodeRepository.save(otpCode);
+
+        // Dispatch OTP (never logged outside dev profile)
+        emailService.sendOtp(target, rawCode);
+
+        auditLogService.log(null, "OTP_SENT", "OTP", target, clientIp, "One-time code generated and sent");
+
+        return MessageResponse.of("If the account exists or is eligible, a one-time verification code has been sent.");
+    }
+
+    /**
+     * Verifies patient OTP code and authenticates or provisions the PATIENT account.
+     * Rate limited by client IP.
+     */
+    @Transactional
+    public AuthResponse verifyOtp(OtpVerifyRequest request, HttpServletRequest httpReq, HttpServletResponse httpRes) {
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
+        rateLimiterService.checkOtpLimit(clientIp);
+
+        String target = request.target() != null ? request.target().trim().toLowerCase() : "";
+        String code = request.code() != null ? request.code().trim() : "";
+
+        Optional<OtpCode> otpOpt = otpCodeRepository.findTopByTargetOrderByCreatedAtDesc(target);
+
+        if (otpOpt.isEmpty() || otpOpt.get().isExpired()) {
+            auditLogService.log(null, "OTP_FAILED", "OTP", target, clientIp, "Expired or missing OTP code");
+            throw new BadRequestException("Invalid or expired verification code");
+        }
+
+        OtpCode otp = otpOpt.get();
+
+        if (otp.getAttempts() >= MAX_OTP_ATTEMPTS) {
+            otpCodeRepository.delete(otp);
+            auditLogService.log(null, "OTP_BLOCKED", "OTP", target, clientIp, "Exceeded max OTP attempts");
+            throw new BadRequestException("Maximum verification attempts exceeded. Please request a new code.");
+        }
+
+        otp.setAttempts(otp.getAttempts() + 1);
+        otpCodeRepository.save(otp);
+
+        String inputHash = tokenProvider.hashToken(code);
+        if (!inputHash.equals(otp.getCodeHash())) {
+            auditLogService.log(null, "OTP_FAILED", "OTP", target, clientIp, "Incorrect OTP code");
+            throw new BadRequestException("Invalid or expired verification code");
+        }
+
+        // Code matched; consume OTP
+        otpCodeRepository.delete(otp);
+
+        // Find or create PATIENT user
+        boolean isEmail = target.contains("@");
+        Optional<User> userOpt = isEmail ? userRepository.findByEmail(target) : userRepository.findByPhone(target);
+
+        User user;
+        if (userOpt.isPresent()) {
+            user = userOpt.get();
+            if (!user.isEnabled() || user.isAccountLocked()) {
+                auditLogService.log(user.getId(), "LOGIN_BLOCKED", "USER", String.valueOf(user.getId()), clientIp, "Disabled or locked patient account attempted OTP login");
+                throw new BadRequestException("Account is inactive or locked. Please contact support.");
+            }
+        } else {
+            // Auto-provision patient account on first verified OTP
+            String email = isEmail ? target : null;
+            String phone = !isEmail ? target : null;
+            user = new User(email, phone, null, Role.PATIENT, "Patient");
+            userRepository.save(user);
+            auditLogService.log(user.getId(), "USER_REGISTERED_OTP", "USER", String.valueOf(user.getId()), clientIp, "Auto-provisioned patient via verified OTP");
+        }
+
+        // Generate tokens
+        String accessToken = tokenProvider.generateAccessToken(user);
+        String rawRefreshToken = tokenProvider.generateRawRefreshToken();
+        String hashedRefreshToken = tokenProvider.hashToken(rawRefreshToken);
+
+        RefreshToken refreshToken = new RefreshToken(
+            hashedRefreshToken,
+            user,
+            LocalDateTime.now().plusDays(REFRESH_EXPIRY_DAYS)
+        );
+        refreshTokenRepository.save(refreshToken);
+
+        setRefreshCookie(httpRes, rawRefreshToken, (int) (REFRESH_EXPIRY_DAYS * 24 * 3600));
+
+        auditLogService.log(user.getId(), "LOGIN_SUCCESS", "USER", String.valueOf(user.getId()), clientIp, "Successful OTP login for PATIENT");
+
+        return AuthResponse.of(
+            accessToken,
+            tokenProvider.getAccessTokenExpirationMs() / 1000,
+            UserSummaryDto.fromEntity(user)
+        );
+    }
+
+    /**
+     * Self-registration for PATIENT role only.
+     * Enforces minimum password length and ensures at least one of email or phone.
+     */
+    @Transactional
+    public AuthResponse registerPatient(RegisterPatientRequest request, HttpServletRequest httpReq, HttpServletResponse httpRes) {
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
+
+        if (!request.hasContact()) {
+            throw new BadRequestException("At least one of email or phone number is required");
+        }
+
+        String email = request.email() != null && !request.email().isBlank() ? request.email().trim().toLowerCase() : null;
+        String phone = request.phone() != null && !request.phone().isBlank() ? request.phone().trim() : null;
+
+        if (email != null && userRepository.findByEmail(email).isPresent()) {
+            throw new BadRequestException("An account with this email already exists");
+        }
+
+        if (phone != null && userRepository.findByPhone(phone).isPresent()) {
+            throw new BadRequestException("An account with this phone number already exists");
+        }
+
+        String passwordHash = null;
+        if (request.password() != null && !request.password().isBlank()) {
+            if (request.password().length() < 8) {
+                throw new BadRequestException("Password must be at least 8 characters");
+            }
+            passwordHash = passwordEncoder.encode(request.password());
+        }
+
+        // Fixed Role: strictly PATIENT
+        User user = new User(email, phone, passwordHash, Role.PATIENT, request.fullName().trim());
+        userRepository.save(user);
+
+        // Generate tokens
+        String accessToken = tokenProvider.generateAccessToken(user);
+        String rawRefreshToken = tokenProvider.generateRawRefreshToken();
+        String hashedRefreshToken = tokenProvider.hashToken(rawRefreshToken);
+
+        RefreshToken refreshToken = new RefreshToken(
+            hashedRefreshToken,
+            user,
+            LocalDateTime.now().plusDays(REFRESH_EXPIRY_DAYS)
+        );
+        refreshTokenRepository.save(refreshToken);
+
+        setRefreshCookie(httpRes, rawRefreshToken, (int) (REFRESH_EXPIRY_DAYS * 24 * 3600));
+
+        auditLogService.log(user.getId(), "PATIENT_REGISTERED", "USER", String.valueOf(user.getId()), clientIp, "Patient self-registered successfully");
+
+        return AuthResponse.of(
+            accessToken,
+            tokenProvider.getAccessTokenExpirationMs() / 1000,
+            UserSummaryDto.fromEntity(user)
+        );
+    }
+
+    /**
+     * Request password reset token.
+     * Uniform response to prevent account enumeration.
+     * Rate limited by client IP.
+     */
+    @Transactional
+    public MessageResponse requestPasswordReset(PasswordResetRequest request, HttpServletRequest httpReq) {
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
+        rateLimiterService.checkPasswordResetLimit(clientIp);
+
+        String email = request.email() != null ? request.email().trim().toLowerCase() : "";
+        Optional<User> userOpt = userRepository.findByEmail(email);
+
+        if (userOpt.isPresent() && userOpt.get().isEnabled()) {
+            User user = userOpt.get();
+
+            // Clear previous reset tokens for this user
+            passwordResetTokenRepository.deleteByUser(user);
+
+            // Generate secure reset token
+            String rawToken = tokenProvider.generateRawRefreshToken();
+            String tokenHash = tokenProvider.hashToken(rawToken);
+
+            PasswordResetToken resetToken = new PasswordResetToken(
+                tokenHash,
+                user,
+                LocalDateTime.now().plusMinutes(PASSWORD_RESET_EXPIRY_MINUTES)
+            );
+            passwordResetTokenRepository.save(resetToken);
+
+            emailService.sendPasswordReset(user.getEmail(), rawToken);
+            auditLogService.log(user.getId(), "PASSWORD_RESET_REQUESTED", "USER", String.valueOf(user.getId()), clientIp, "Password reset token generated");
+        } else {
+            auditLogService.log(null, "PASSWORD_RESET_REQUESTED", "USER", email, clientIp, "Password reset attempted for non-existent or inactive email");
+        }
+
+        return MessageResponse.of("If the account exists, password reset instructions have been sent.");
+    }
+
+    /**
+     * Confirms password reset, updates password hash, clears lockout, and revokes all user sessions.
+     * Rate limited by client IP.
+     */
+    @Transactional
+    public MessageResponse confirmPasswordReset(PasswordResetConfirmRequest request, HttpServletRequest httpReq) {
+        String clientIp = clientIpResolver.resolveClientIp(httpReq);
+        rateLimiterService.checkPasswordResetLimit(clientIp);
+
+        if (request.newPassword() == null || request.newPassword().length() < 8) {
+            throw new BadRequestException("Password must be at least 8 characters");
+        }
+
+        String tokenHash = tokenProvider.hashToken(request.token().trim());
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByTokenHash(tokenHash);
+
+        if (tokenOpt.isEmpty() || !tokenOpt.get().isValid()) {
+            auditLogService.log(null, "PASSWORD_RESET_FAILED", "TOKEN", "unknown", clientIp, "Invalid or expired reset token");
+            throw new BadRequestException("Invalid or expired password reset token");
+        }
+
+        PasswordResetToken resetToken = tokenOpt.get();
+        User user = resetToken.getUser();
+
+        // Mark token used
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.saveAndFlush(resetToken);
+
+        // Update password and reset failure counters
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
+        userRepository.saveAndFlush(user);
+
+        // Revoke all existing sessions for security
+        refreshTokenRepository.revokeAllByUser(user);
+
+        auditLogService.log(user.getId(), "PASSWORD_RESET_COMPLETED", "USER", String.valueOf(user.getId()), clientIp, "Password reset completed successfully");
+
+        return MessageResponse.of("Password has been successfully reset. Please log in with your new password.");
     }
 
     /**
