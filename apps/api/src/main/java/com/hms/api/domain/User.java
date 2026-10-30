@@ -44,13 +44,23 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
+        validateContact();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate
     protected void onUpdate() {
+        validateContact();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    private void validateContact() {
+        boolean hasEmail = email != null && !email.trim().isEmpty();
+        boolean hasPhone = phone != null && !phone.trim().isEmpty();
+        if (!hasEmail && !hasPhone) {
+            throw new IllegalStateException("A user must have at least an email address or a phone number.");
+        }
     }
 
     public User() {}
