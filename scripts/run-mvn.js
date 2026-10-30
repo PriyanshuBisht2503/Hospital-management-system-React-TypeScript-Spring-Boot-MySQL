@@ -2,7 +2,30 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const apiDir = path.resolve(__dirname, '..', 'apps', 'api');
+const rootDir = path.resolve(__dirname, '..');
+const apiDir = path.resolve(rootDir, 'apps', 'api');
+
+// Load .env if present
+const envPath = path.join(rootDir, '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const idx = trimmed.indexOf('=');
+      if (idx !== -1) {
+        const key = trimmed.slice(0, idx).trim();
+        let val = trimmed.slice(idx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
 
 function findMaven() {
   // 1. Check mvn in PATH
@@ -37,7 +60,8 @@ console.log(`[maven] Running: "${mvnPath}" ${args.join(' ')} in ${apiDir}`);
 const result = spawnSync(`"${mvnPath}"`, args, {
   cwd: apiDir,
   shell: true,
-  stdio: 'inherit'
+  stdio: 'inherit',
+  env: process.env
 });
 
 process.exit(result.status ?? 0);

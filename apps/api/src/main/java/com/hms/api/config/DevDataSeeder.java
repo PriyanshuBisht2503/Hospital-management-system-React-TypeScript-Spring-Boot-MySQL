@@ -6,11 +6,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Dev-only seeder. Strictly restricted to 'dev' profile.
+ * Skips admin creation if DEV_ADMIN_EMAIL or DEV_ADMIN_PASSWORD is not explicitly provided.
+ */
 @Component
+@Profile("dev")
 public class DevDataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DevDataSeeder.class);
@@ -21,10 +27,10 @@ public class DevDataSeeder implements CommandLineRunner {
     private final SpecialtyRepository specialtyRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.auth.dev-admin.email:admin@aster.ae}")
+    @Value("${app.auth.dev-admin.email:}")
     private String adminEmail;
 
-    @Value("${app.auth.dev-admin.password:Admin@Aster123}")
+    @Value("${app.auth.dev-admin.password:}")
     private String adminPassword;
 
     @Value("${app.auth.dev-admin.full-name:System Administrator}")
@@ -52,23 +58,29 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private void seedAdminUser() {
+        if (adminEmail == null || adminEmail.trim().isEmpty() ||
+            adminPassword == null || adminPassword.trim().isEmpty()) {
+            log.info("[DevDataSeeder] DEV_ADMIN_EMAIL or DEV_ADMIN_PASSWORD not set. Skipping dev admin creation.");
+            return;
+        }
+
         if (userRepository.countByRole(Role.ADMIN) == 0) {
-            log.info("No ADMIN user found. Seeding initial dev ADMIN user: {}", adminEmail);
+            log.info("[DevDataSeeder] Seeding initial dev ADMIN user: {}", adminEmail.trim());
             User admin = new User(
-                adminEmail,
+                adminEmail.trim(),
                 "+971500000001",
-                passwordEncoder.encode(adminPassword),
+                passwordEncoder.encode(adminPassword.trim()),
                 Role.ADMIN,
-                adminFullName
+                adminFullName != null ? adminFullName.trim() : "System Administrator"
             );
             userRepository.save(admin);
-            log.info("Dev ADMIN user seeded successfully.");
+            log.info("[DevDataSeeder] Dev ADMIN user seeded successfully.");
         }
     }
 
     private void seedMasterData() {
         if (branchRepository.count() == 0) {
-            log.info("Seeding initial hospital branches...");
+            log.info("[DevDataSeeder] Seeding initial hospital branches...");
             Branch b1 = new Branch(
                 "Aster Hospital Mankhool",
                 "DXB-MANKHOOL",
@@ -90,14 +102,14 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         if (departmentRepository.count() == 0) {
-            log.info("Seeding initial departments...");
+            log.info("[DevDataSeeder] Seeding initial departments...");
             departmentRepository.save(new Department("Cardiology", "CARDIO", "Cardiovascular Medicine and Interventional Sciences"));
             departmentRepository.save(new Department("Orthopaedics", "ORTHO", "Bone, Joint and Musculoskeletal Care"));
             departmentRepository.save(new Department("Internal Medicine", "INTERNAL", "Comprehensive Outpatient and Inpatient Adult Medicine"));
         }
 
         if (specialtyRepository.count() == 0) {
-            log.info("Seeding initial specialties...");
+            log.info("[DevDataSeeder] Seeding initial specialties...");
             specialtyRepository.save(new Specialty("Interventional Cardiology", "SPEC-INT-CARD", "Catheter-based treatment of structural heart diseases"));
             specialtyRepository.save(new Specialty("Joint Replacement Surgery", "SPEC-JOINT", "Total knee and hip arthroplasty"));
             specialtyRepository.save(new Specialty("General Internal Medicine", "SPEC-GEN-MED", "Diagnosis and treatment of acute and chronic adult illnesses"));
