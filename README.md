@@ -17,13 +17,15 @@ A modular, enterprise-grade Hospital Management System modelled on the Aster Hos
 ## Fixed Tech Stack
 
 - **Frontend:** React.js, TypeScript, HTML5, CSS3 (Vite build tool)
-- **Backend:** Java 21, Spring Boot 3.5.x (Maven)
+- **Backend:** Java 21, Spring Boot 3.5.x / 3.4.x (Maven)
 - **API Style:** REST APIs (JSON over HTTP)
-- **Database:** MySQL
+- **Database:** MySQL 8.0
 - **ORM / Data Access:** Spring Data JPA (Hibernate, `ddl-auto: none`)
 - **Schema Migrations:** Flyway
-- **Authentication:** Spring Security with JWT (role-based access)
+- **Authentication:** Spring Security with JWT & BCrypt (role-based access)
 - **Fixed Roles (4 only):** `ADMIN`, `DOCTOR`, `RECEPTIONIST`, `PATIENT`
+- **Rate Limiting:** Bucket4j
+- **API Docs:** Springdoc OpenAPI (Swagger UI at `/swagger-ui.html`)
 
 ## Getting Started
 
