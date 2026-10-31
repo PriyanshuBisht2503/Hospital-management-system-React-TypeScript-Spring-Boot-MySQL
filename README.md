@@ -27,6 +27,21 @@ A modular, enterprise-grade Hospital Management System modelled on the Aster Hos
 - **Rate Limiting:** Bucket4j
 - **API Docs:** Springdoc OpenAPI (Swagger UI at `/swagger-ui.html`)
 
+## Demo accounts (dev only)
+
+> [!WARNING]
+> **CRITICAL SECURITY NOTICE:**
+> The demo accounts listed below are seeded **strictly** under the `dev` Spring profile (`SPRING_PROFILES_ACTIVE=dev`) for local development and testing. They **must never exist in production**. The seeder is guarded to run only when the `dev` profile is active, and the application logs a high-visibility warning at startup whenever demo accounts exist in the database.
+
+| Role | Email | Password | Auth Method | Notes |
+|------|-------|----------|-------------|-------|
+| `ADMIN` | `admin123@hms.local` | `admin@123` | Email & Password | Full system administration |
+| `DOCTOR` | `doctor123@hms.local` | `doctor@123` | Email & Password | Linked to doctor profile (Cardiology, Mankhool branch) |
+| `RECEPTIONIST` | `receptionist123@hms.local` | `receptionist@123` | Email & Password | Front desk operations & check-in |
+| `PATIENT` | `patient123@hms.local` | _None_ | OTP verification (`/api/auth/otp/send`) | Patient portal & appointment booking |
+
+*Normal security rules apply to demo accounts: BCrypt password hashing, account lockout (after 5 failed attempts), Bucket4j rate limiting, and audit logging.*
+
 ## Getting Started
 
 ### Prerequisites
