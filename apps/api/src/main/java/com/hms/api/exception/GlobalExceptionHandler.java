@@ -13,6 +13,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.hms.api.security.SecurityUser;
+import com.hms.api.service.AuditLogService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +26,15 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final AuditLogService auditLogService;
+    private final boolean trustProxyHeaders;
+
+    public GlobalExceptionHandler(AuditLogService auditLogService,
+                                  @Value("${app.security.trust-proxy-headers:false}") boolean trustProxyHeaders) {
+        this.auditLogService = auditLogService;
+        this.trustProxyHeaders = trustProxyHeaders;
+    }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
@@ -45,8 +60,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         log.warn("Access denied on path {}: {}", request.getRequestURI(), ex.getMessage());
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = null;
+        if (auth != null && auth.getPrincipal() instanceof SecurityUser securityUser) {
+            userId = securityUser.getId();
+        }
+
+        String clientIp = request.getRemoteAddr();
+        if (trustProxyHeaders) {
+            String xForwardedFor = request.getHeader("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+                clientIp = xForwardedFor.split(",")[0].trim();
+            }
+        }
+
+        auditLogService.log(
+            "ACCESS_DENIED",
+            "ENDPOINT",
+            request.getRequestURI(),
+            userId,
+            clientIp,
+            ex.getMessage()
+        );
+
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse.of(HttpStatus.FORBIDDEN.value(), "Forbidden", "Access denied: insufficient permissions", request.getRequestURI()));
+                .body(ErrorResponse.of(HttpStatus.FORBIDDEN.value(), "Forbidden", "Access denied: insufficient permissions to access this resource", request.getRequestURI()));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

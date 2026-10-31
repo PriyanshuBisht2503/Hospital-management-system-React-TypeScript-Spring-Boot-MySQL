@@ -91,13 +91,12 @@ public class AuthController {
     }
 
     @PostMapping("/register-patient")
-    @Operation(summary = "Register patient", description = "Self-registration endpoint for PATIENT role only; returns access token + refresh cookie")
-    public ResponseEntity<AuthResponse> registerPatient(
+    @Operation(summary = "Register patient", description = "Self-registration endpoint for PATIENT role only; creates account and sends OTP for verification")
+    public ResponseEntity<MessageResponse> registerPatient(
         @Valid @RequestBody RegisterPatientRequest request,
-        HttpServletRequest httpRequest,
-        HttpServletResponse httpResponse
+        HttpServletRequest httpRequest
     ) {
-        AuthResponse response = authService.registerPatient(request, httpRequest, httpResponse);
+        MessageResponse response = authService.registerPatient(request, httpRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

@@ -183,12 +183,15 @@ public class AuthService {
     @Transactional
     public MessageResponse sendOtp(OtpSendRequest request, HttpServletRequest httpReq) {
         String clientIp = clientIpResolver.resolveClientIp(httpReq);
-        rateLimiterService.checkOtpLimit(clientIp);
 
         String target = request.target() != null ? request.target().trim().toLowerCase() : "";
         if (target.isEmpty()) {
             throw new BadRequestException("Target (email or phone) is required");
         }
+
+        // Rate limit: by client IP (5/min) and per-target (3 per 10 mins)
+        rateLimiterService.checkOtpLimit(clientIp);
+        rateLimiterService.checkOtpTargetLimit(target);
 
         // Delete any existing OTPs for this target
         otpCodeRepository.deleteByTarget(target);
@@ -299,8 +302,13 @@ public class AuthService {
      * Self-registration for PATIENT role only.
      * Enforces minimum password length and ensures at least one of email or phone.
      */
+    /**
+     * Patient self-registration.
+     * Creates account with strictly PATIENT role and sends verification OTP.
+     * Does NOT issue tokens directly; user verifies OTP to authenticate.
+     */
     @Transactional
-    public AuthResponse registerPatient(RegisterPatientRequest request, HttpServletRequest httpReq, HttpServletResponse httpRes) {
+    public MessageResponse registerPatient(RegisterPatientRequest request, HttpServletRequest httpReq) {
         String clientIp = clientIpResolver.resolveClientIp(httpReq);
 
         if (!request.hasContact()) {
@@ -330,27 +338,28 @@ public class AuthService {
         User user = new User(email, phone, passwordHash, Role.PATIENT, request.fullName().trim());
         userRepository.save(user);
 
-        // Generate tokens
-        String accessToken = tokenProvider.generateAccessToken(user);
-        String rawRefreshToken = tokenProvider.generateRawRefreshToken();
-        String hashedRefreshToken = tokenProvider.hashToken(rawRefreshToken);
+        // Send verification OTP to patient contact (email or phone)
+        String target = email != null ? email : phone;
+        rateLimiterService.checkOtpLimit(clientIp);
+        rateLimiterService.checkOtpTargetLimit(target);
 
-        RefreshToken refreshToken = new RefreshToken(
-            hashedRefreshToken,
-            user,
-            LocalDateTime.now().plusDays(REFRESH_EXPIRY_DAYS)
+        otpCodeRepository.deleteByTarget(target);
+        int codeInt = secureRandom.nextInt(1_000_000);
+        String rawCode = String.format("%06d", codeInt);
+        String codeHash = tokenProvider.hashToken(rawCode);
+
+        OtpCode otpCode = new OtpCode(
+            target,
+            codeHash,
+            LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES)
         );
-        refreshTokenRepository.save(refreshToken);
-
-        setRefreshCookie(httpRes, rawRefreshToken, (int) (REFRESH_EXPIRY_DAYS * 24 * 3600));
+        otpCodeRepository.save(otpCode);
+        emailService.sendOtp(target, rawCode);
 
         auditLogService.log(user.getId(), "PATIENT_REGISTERED", "USER", String.valueOf(user.getId()), clientIp, "Patient self-registered successfully");
+        auditLogService.log(user.getId(), "OTP_SENT", "OTP", target, clientIp, "One-time registration verification code sent");
 
-        return AuthResponse.of(
-            accessToken,
-            tokenProvider.getAccessTokenExpirationMs() / 1000,
-            UserSummaryDto.fromEntity(user)
-        );
+        return MessageResponse.of("Account registered successfully. A verification code has been sent to complete your registration.");
     }
 
     /**

@@ -182,12 +182,41 @@ class Step3BAuthTest {
         assertThat(otpCodeRepository.findTopByTargetOrderByCreatedAtDesc(target)).isEmpty();
     }
 
+    @Test
+    @DisplayName("Single-use OTP: successful verification immediately deletes the code and replay fails with 400")
+    void singleUseOtpEnforced() throws Exception {
+        String target = "singleuse@aster.ae";
+        String rawCode = "654321";
+        String hashedCode = jwtTokenProvider.hashToken(rawCode);
+
+        otpCodeRepository.save(new OtpCode(target, hashedCode, LocalDateTime.now().plusMinutes(5)));
+
+        OtpVerifyRequest req = new OtpVerifyRequest(target, rawCode);
+
+        // 1st verification succeeds
+        mockMvc.perform(post("/api/auth/otp/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        // Code is deleted from repository
+        assertThat(otpCodeRepository.findTopByTargetOrderByCreatedAtDesc(target)).isEmpty();
+
+        // 2nd verification replay immediately fails with 400
+        mockMvc.perform(post("/api/auth/otp/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid or expired verification code"));
+    }
+
     // ==========================================
     // PATIENT SELF-REGISTRATION TESTS
     // ==========================================
 
     @Test
-    @DisplayName("Patient self-registration: valid data registers PATIENT and returns JWT with refresh cookie")
+    @DisplayName("Patient self-registration: creates PATIENT and sends OTP without issuing tokens directly")
     void registerPatientSuccess() throws Exception {
         RegisterPatientRequest req = new RegisterPatientRequest(
             "Fatima Al Mansoori",
@@ -200,14 +229,17 @@ class Step3BAuthTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.user.email").value("fatima@aster.ae"))
-                .andExpect(jsonPath("$.user.role").value("PATIENT"))
-                .andExpect(cookie().exists("hms_refresh_token"));
+                .andExpect(jsonPath("$.message").value("Account registered successfully. A verification code has been sent to complete your registration."))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(cookie().doesNotExist("hms_refresh_token"));
 
         User saved = userRepository.findByEmail("fatima@aster.ae").orElseThrow();
         assertThat(saved.getRole()).isEqualTo(Role.PATIENT);
         assertThat(passwordEncoder.matches("Password@123", saved.getPasswordHash())).isTrue();
+
+        // OTP code was dispatched to patient's email
+        Optional<OtpCode> otpOpt = otpCodeRepository.findTopByTargetOrderByCreatedAtDesc("fatima@aster.ae");
+        assertThat(otpOpt).isPresent();
     }
 
     @Test
@@ -337,12 +369,33 @@ class Step3BAuthTest {
     // ==========================================
 
     @Test
-    @DisplayName("Rate limiting on OTP endpoint: returns 429 Too Many Requests after 5 attempts from same IP")
-    void otpRateLimitingEnforced() throws Exception {
-        OtpSendRequest req = new OtpSendRequest("ratelimit@aster.ae");
+    @DisplayName("Rate limiting on OTP endpoint: returns 429 after 3 attempts against same email or phone target")
+    void otpPerTargetRateLimitingEnforced() throws Exception {
+        OtpSendRequest req = new OtpSendRequest("target-limit@aster.ae");
 
-        // 5 requests allowed
-        for (int i = 0; i < 5; i++) {
+        // 3 requests allowed per target
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post("/api/auth/otp/send")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isOk());
+        }
+
+        // 4th request against same target returns 429 Too Many Requests
+        mockMvc.perform(post("/api/auth/otp/send")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Too many OTP requests for this email or phone number")));
+    }
+
+    @Test
+    @DisplayName("Rate limiting on OTP endpoint: returns 429 after 5 attempts from same IP across different targets")
+    void otpIpRateLimitingEnforced() throws Exception {
+        // 5 requests allowed from same IP (using different targets to avoid target limit)
+        for (int i = 1; i <= 5; i++) {
+            OtpSendRequest req = new OtpSendRequest("unique" + i + "@aster.ae");
             mockMvc.perform(post("/api/auth/otp/send")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
@@ -350,12 +403,13 @@ class Step3BAuthTest {
         }
 
         // 6th request from same IP is rate-limited
+        OtpSendRequest req6 = new OtpSendRequest("unique6@aster.ae");
         mockMvc.perform(post("/api/auth/otp/send")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(req)))
+                .content(objectMapper.writeValueAsString(req6)))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Too many OTP requests")));
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Too many OTP requests from this IP address")));
     }
 
     @Test
