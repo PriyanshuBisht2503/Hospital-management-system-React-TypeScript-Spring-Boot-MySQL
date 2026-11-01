@@ -72,7 +72,7 @@ class AuthControllerTest {
         userRepository.deleteAll();
 
         testDoctor = new User(
-            "doctor.test@aster.ae",
+            "doctor.test@example.com",
             "+971501112233",
             passwordEncoder.encode("Doctor@12345"),
             Role.DOCTOR,
@@ -84,7 +84,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Staff login success: returns access token, sets HttpOnly refresh cookie, and logs audit")
     void staffLoginSuccess() throws Exception {
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "Doctor@12345");
 
         MvcResult result = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.expiresIn").value(1800))
-                .andExpect(jsonPath("$.user.email").value("doctor.test@aster.ae"))
+                .andExpect(jsonPath("$.user.email").value("doctor.test@example.com"))
                 .andExpect(jsonPath("$.user.role").value("DOCTOR"))
                 .andExpect(cookie().exists("hms_refresh_token"))
                 .andExpect(cookie().httpOnly("hms_refresh_token", true))
@@ -116,7 +116,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Staff login failure with bad password: returns 401 and records audit")
     void staffLoginBadPassword() throws Exception {
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "WrongPassword123");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "WrongPassword123");
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -134,7 +134,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Login response is identical for non-existent account (no account enumeration)")
     void staffLoginNonExistentAccount() throws Exception {
-        LoginRequest req = new LoginRequest("nonexistent@aster.ae", "SomePassword123");
+        LoginRequest req = new LoginRequest("nonexistent@example.com", "SomePassword123");
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -143,13 +143,13 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Invalid email or password"));
 
         List<AuditLog> logs = auditLogRepository.findAll();
-        assertThat(logs).anyMatch(l -> "LOGIN_FAILED".equals(l.getAction()) && "nonexistent@aster.ae".equals(l.getEntityId()));
+        assertThat(logs).anyMatch(l -> "LOGIN_FAILED".equals(l.getAction()) && "nonexistent@example.com".equals(l.getEntityId()));
     }
 
     @Test
     @DisplayName("Account lockout after 5 failures returns generic 401 response; audit log records lockout")
     void accountLockoutAfterFiveFailures() throws Exception {
-        LoginRequest badReq = new LoginRequest("doctor.test@aster.ae", "WrongPassword123");
+        LoginRequest badReq = new LoginRequest("doctor.test@example.com", "WrongPassword123");
 
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(post("/api/auth/login")
@@ -181,7 +181,7 @@ class AuthControllerTest {
         testDoctor.setLockedUntil(LocalDateTime.now().minusMinutes(1)); // Lockout elapsed
         userRepository.save(testDoctor);
 
-        LoginRequest validReq = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest validReq = new LoginRequest("doctor.test@example.com", "Doctor@12345");
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -200,7 +200,7 @@ class AuthControllerTest {
         testDoctor.setEnabled(false);
         userRepository.save(testDoctor);
 
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "Doctor@12345");
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -264,7 +264,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Refresh token rotation: issues new access token & new cookie, revoking old token")
     void refreshTokenRotation() throws Exception {
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "Doctor@12345");
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
@@ -301,7 +301,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Refresh race: reuse within 10-second grace window is treated as race, NOT reuse attack")
     void refreshRaceWithinGraceWindowDoesNotRevokeAllSessions() throws Exception {
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "Doctor@12345");
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
@@ -332,7 +332,7 @@ class AuthControllerTest {
     @DisplayName("Reusing a revoked refresh token outside 10s grace window revokes ALL refresh tokens for user")
     void revokedRefreshTokenReuseOutsideGraceWindowRevokesAllUserSessions() throws Exception {
         // 1. Login twice
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "Doctor@12345");
         MvcResult login1 = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
@@ -373,7 +373,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Client IP resolution ignores spoofed X-Forwarded-For when trust-proxy-headers is false")
     void clientIpIgnoresSpoofedXForwardedFor() throws Exception {
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "WrongPassword123");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "WrongPassword123");
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -388,7 +388,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Long email truncates safely in audit log without overflowing 50-char column")
     void longEmailTruncatesInAuditLog() throws Exception {
-        String longEmail = "averylongnonexistentemailaddressfortestingoverlowexceeding50chars@aster.ae";
+        String longEmail = "averylongnonexistentemailaddressfortestingoverlowexceeding50chars@example.com";
         LoginRequest req = new LoginRequest(longEmail, "WrongPassword123");
 
         mockMvc.perform(post("/api/auth/login")
@@ -405,7 +405,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Logout revokes the refresh token and clears cookie")
     void logoutRevokesToken() throws Exception {
-        LoginRequest req = new LoginRequest("doctor.test@aster.ae", "Doctor@12345");
+        LoginRequest req = new LoginRequest("doctor.test@example.com", "Doctor@12345");
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
@@ -435,7 +435,7 @@ class AuthControllerTest {
                 .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(testDoctor.getId()))
-                .andExpect(jsonPath("$.email").value("doctor.test@aster.ae"))
+                .andExpect(jsonPath("$.email").value("doctor.test@example.com"))
                 .andExpect(jsonPath("$.role").value("DOCTOR"))
                 .andExpect(jsonPath("$.fullName").value("Dr. Test Doctor"));
     }

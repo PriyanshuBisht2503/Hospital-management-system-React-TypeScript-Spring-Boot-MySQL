@@ -32,8 +32,8 @@ class MasterDataRepositoryTest {
     @Test
     @DisplayName("Should persist and query active branches")
     void shouldPersistAndQueryActiveBranches() {
-        Branch active = new Branch("Mankhool Branch", "TEST-BR-1", "Al Mankhool", "Dubai", "+97140001", "m@aster.ae");
-        Branch inactive = new Branch("Old Clinic", "TEST-BR-2", "Deira", "Dubai", "+97140002", "d@aster.ae");
+        Branch active = new Branch("Mankhool Branch", "TEST-BR-1", "Al Mankhool", "Dubai", "+97140001", "m@example.com");
+        Branch inactive = new Branch("Old Clinic", "TEST-BR-2", "Deira", "Dubai", "+97140002", "d@example.com");
         inactive.setActive(false);
 
         branchRepository.save(active);

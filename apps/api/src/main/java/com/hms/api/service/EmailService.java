@@ -20,7 +20,7 @@ public class EmailService {
 
     private final Environment environment;
 
-    @Value("${app.mail.from:noreply@aster.ae}")
+    @Value("${app.mail.from:noreply@example.com}")
     private String mailFrom;
 
     public EmailService(Environment environment) {
@@ -40,7 +40,7 @@ public class EmailService {
                 SimpleMailMessage message = new SimpleMailMessage();
                 message.setFrom(mailFrom);
                 message.setTo(target);
-                message.setSubject("Your Aster Hospital Verification Code");
+                message.setSubject("Your CareHMS Verification Code");
                 message.setText("Your single-use verification code is: " + rawOtp + "\n\nThis code expires in 5 minutes. If you did not request this, please ignore this email.");
                 mailSender.send(message);
             } catch (Exception e) {
@@ -62,7 +62,7 @@ public class EmailService {
                 SimpleMailMessage message = new SimpleMailMessage();
                 message.setFrom(mailFrom);
                 message.setTo(to);
-                message.setSubject("Aster Hospital - Password Reset Request");
+                message.setSubject("CareHMS - Password Reset Request");
                 message.setText("You requested a password reset. Use the following token to reset your password:\n\n" + rawToken + "\n\nThis token expires in 15 minutes.");
                 mailSender.send(message);
             } catch (Exception e) {

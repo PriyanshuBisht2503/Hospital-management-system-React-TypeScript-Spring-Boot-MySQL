@@ -68,10 +68,10 @@ class UserManagementTest {
         doctorRepository.deleteAll();
         userRepository.deleteAll();
 
-        admin1 = userRepository.save(new User("admin1@aster.ae", "+971501111111", "hash", Role.ADMIN, "Super Admin"));
-        docUser = userRepository.save(new User("doc@aster.ae", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
-        User rec = userRepository.save(new User("rec@aster.ae", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
-        User pat = userRepository.save(new User("pat@aster.ae", "+971504444444", "hash", Role.PATIENT, "Patient User"));
+        admin1 = userRepository.save(new User("admin1@example.com", "+971501111111", "hash", Role.ADMIN, "Super Admin"));
+        docUser = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
+        User rec = userRepository.save(new User("rec@example.com", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
+        User pat = userRepository.save(new User("pat@example.com", "+971504444444", "hash", Role.PATIENT, "Patient User"));
 
         admin1Token = "Bearer " + jwtTokenProvider.generateAccessToken(admin1);
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(docUser);
@@ -115,7 +115,7 @@ class UserManagementTest {
     void adminCreateStaffRejectsPatientRole() throws Exception {
         // 1. Attempt to create PATIENT via staff endpoint
         CreateStaffRequest patientReq = new CreateStaffRequest(
-            "fake.patient@aster.ae", "+971509990022", "Fake Patient", "Password123", Role.PATIENT
+            "fake.patient@example.com", "+971509990022", "Fake Patient", "Password123", Role.PATIENT
         );
 
         mockMvc.perform(post("/api/admin/users")
@@ -127,7 +127,7 @@ class UserManagementTest {
 
         // 2. Valid RECEPTIONIST creation
         CreateStaffRequest validReq = new CreateStaffRequest(
-            "new.rec@aster.ae", "+971509990033", "New Receptionist", "Password123", Role.RECEPTIONIST
+            "new.rec@example.com", "+971509990033", "New Receptionist", "Password123", Role.RECEPTIONIST
         );
 
         mockMvc.perform(post("/api/admin/users")
@@ -135,7 +135,7 @@ class UserManagementTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validReq)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email").value("new.rec@aster.ae"))
+                .andExpect(jsonPath("$.email").value("new.rec@example.com"))
                 .andExpect(jsonPath("$.role").value("RECEPTIONIST"));
     }
 
@@ -143,7 +143,7 @@ class UserManagementTest {
     @DisplayName("Role change: admin cannot demote themselves or last remaining ADMIN (409); revokes tokens")
     void adminChangeRoleRulesAndTokenRevocation() throws Exception {
         // Seed a second admin
-        User admin2 = userRepository.save(new User("admin2@aster.ae", "+971501111112", "hash", Role.ADMIN, "Admin Two"));
+        User admin2 = userRepository.save(new User("admin2@example.com", "+971501111112", "hash", Role.ADMIN, "Admin Two"));
 
         // 1. Admin cannot demote themselves (409)
         ChangeRoleRequest demoteSelfReq = new ChangeRoleRequest(Role.RECEPTIONIST);

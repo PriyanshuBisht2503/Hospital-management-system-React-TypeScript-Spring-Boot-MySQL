@@ -20,7 +20,7 @@ public class OpenApiConfig {
             .info(new Info()
                 .title("Hospital Management System (HMS) Core API")
                 .version("1.0.0")
-                .description("Core HMS REST API modelled on Aster Hospitals ecosystem. Serves public website, patient portal, and staff dashboard.")
+                .description("Core HMS REST API for CareHMS healthcare system. Serves public website, patient portal, and staff dashboard.")
                 .contact(new Contact().name("HMS Engineering").email("support@hms.local")))
             .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH_SCHEME))
             .components(new Components()

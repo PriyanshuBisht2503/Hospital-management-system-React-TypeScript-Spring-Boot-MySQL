@@ -65,20 +65,20 @@ public class DevDataSeeder implements CommandLineRunner {
         if (branchRepository.count() == 0) {
             log.info("[DevDataSeeder] Seeding initial hospital branches...");
             Branch b1 = new Branch(
-                "Aster Hospital Mankhool",
+                "CareHMS Mankhool",
                 "DXB-MANKHOOL",
                 "Kuwait Street, Al Mankhool",
                 "Dubai",
                 "+97144400500",
-                "mankhool@aster.ae"
+                "mankhool@example.com"
             );
             Branch b2 = new Branch(
-                "Aster Hospital Al Qusais",
+                "CareHMS Al Qusais",
                 "DXB-QUSAIS",
                 "9A Street, Al Qusais Industrial 2",
                 "Dubai",
                 "+97144400600",
-                "qusais@aster.ae"
+                "qusais@example.com"
             );
             branchRepository.save(b1);
             branchRepository.save(b2);

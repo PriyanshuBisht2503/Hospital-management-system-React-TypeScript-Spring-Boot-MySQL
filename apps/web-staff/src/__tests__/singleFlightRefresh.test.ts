@@ -28,7 +28,7 @@ describe('Single-Flight Token Refresh', () => {
             expiresInMs: 1800000,
             user: {
               id: 1,
-              email: 'staff@aster.ae',
+              email: 'staff@example.com',
               fullName: 'Staff Member',
               phone: '+971500000000',
               role: 'ADMIN',
@@ -124,7 +124,7 @@ describe('Single-Flight Token Refresh', () => {
     await expect(
       apiRequest('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: 'bad@aster.ae', password: 'wrong' }),
+        body: JSON.stringify({ email: 'bad@example.com', password: 'wrong' }),
       })
     ).rejects.toThrow('Invalid email or password');
 

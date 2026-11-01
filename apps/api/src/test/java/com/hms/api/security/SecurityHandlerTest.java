@@ -97,7 +97,7 @@ class SecurityHandlerTest {
     @Test
     @DisplayName("403 Forbidden returns consistent ErrorResponse JSON and creates exactly ONE audit row")
     void forbiddenRequestReturnsConsistent403AndExactlyOneAuditRow() throws Exception {
-        User doctorUser = new User("doc@aster.ae", "+971509998811", "pass", Role.DOCTOR, "Dr. Test");
+        User doctorUser = new User("doc@example.com", "+971509998811", "pass", Role.DOCTOR, "Dr. Test");
         doctorUser = userRepository.save(doctorUser);
         String doctorToken = jwtTokenProvider.generateAccessToken(doctorUser);
 

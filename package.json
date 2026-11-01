@@ -2,7 +2,7 @@
   "name": "hospital-management-system",
   "version": "1.0.0",
   "private": true,
-  "description": "Hospital Management System modelled on Aster Hospitals (UAE)",
+  "description": "CareHMS - Enterprise Hospital Management System",
   "workspaces": [
     "apps/*",
     "packages/*"

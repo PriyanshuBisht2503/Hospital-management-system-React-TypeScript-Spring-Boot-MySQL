@@ -48,10 +48,10 @@ class AuditLogViewerTest {
         auditLogRepository.deleteAll();
         userRepository.deleteAll();
 
-        User admin = userRepository.save(new User("admin@aster.ae", "+971501111111", "hash", Role.ADMIN, "Admin User"));
-        User doc = userRepository.save(new User("doc@aster.ae", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
-        User rec = userRepository.save(new User("rec@aster.ae", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
-        User pat = userRepository.save(new User("pat@aster.ae", "+971504444444", "hash", Role.PATIENT, "Patient User"));
+        User admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
+        User doc = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
+        User rec = userRepository.save(new User("rec@example.com", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
+        User pat = userRepository.save(new User("pat@example.com", "+971504444444", "hash", Role.PATIENT, "Patient User"));
 
         adminToken = "Bearer " + jwtTokenProvider.generateAccessToken(admin);
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doc);

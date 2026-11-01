@@ -77,13 +77,13 @@ class DoctorManagementTest {
         branchRepository.deleteAll();
         specialtyRepository.deleteAll();
 
-        branch = branchRepository.save(new Branch("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "mankhool@aster.ae"));
+        branch = branchRepository.save(new Branch("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "mankhool@example.com"));
         specialty = specialtyRepository.save(new Specialty("Cardiology", "CARD-01", "Heart specialty"));
 
-        User admin = userRepository.save(new User("admin@aster.ae", "+971501111111", "hash", Role.ADMIN, "Admin User"));
-        User doc = userRepository.save(new User("doc@aster.ae", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
-        User rec = userRepository.save(new User("rec@aster.ae", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
-        User pat = userRepository.save(new User("pat@aster.ae", "+971504444444", "hash", Role.PATIENT, "Patient User"));
+        User admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
+        User doc = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
+        User rec = userRepository.save(new User("rec@example.com", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
+        User pat = userRepository.save(new User("pat@example.com", "+971504444444", "hash", Role.PATIENT, "Patient User"));
 
         adminToken = "Bearer " + jwtTokenProvider.generateAccessToken(admin);
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doc);
@@ -94,7 +94,7 @@ class DoctorManagementTest {
     @Test
     @DisplayName("Public doctor list and detail: returns active only, with NO email, phone, or userId")
     void publicDoctorListAndDetailContainNoPrivateFields() throws Exception {
-        User docUser = userRepository.save(new User("dr.private@aster.ae", "+971508889900", "hash", Role.DOCTOR, "Dr. Private Specialist"));
+        User docUser = userRepository.save(new User("dr.private@example.com", "+971508889900", "hash", Role.DOCTOR, "Dr. Private Specialist"));
         Doctor doc = new Doctor(docUser, "Expert Cardiologist", "MBBS, MD", "English, Arabic", 12, BigDecimal.valueOf(350));
         doc.setBranches(Set.of(branch));
         doc.setSpecialties(Set.of(specialty));
@@ -102,7 +102,7 @@ class DoctorManagementTest {
         doc = doctorRepository.save(doc);
 
         // Inactive doctor that must NOT appear publicly
-        User inactiveUser = userRepository.save(new User("dr.inactive@aster.ae", "+971507778899", "hash", Role.DOCTOR, "Dr. Inactive"));
+        User inactiveUser = userRepository.save(new User("dr.inactive@example.com", "+971507778899", "hash", Role.DOCTOR, "Dr. Inactive"));
         Doctor inactiveDoc = new Doctor(inactiveUser, "Inactive", "MBBS", "English", 2, BigDecimal.valueOf(100));
         inactiveDoc.setActive(false);
         doctorRepository.save(inactiveDoc);
@@ -122,7 +122,7 @@ class DoctorManagementTest {
         assertThat(firstDoc.has("phone")).isFalse();
         assertThat(firstDoc.has("userId")).isFalse();
         assertThat(firstDoc.has("user")).isFalse();
-        assertThat(listJson).doesNotContain("dr.private@aster.ae");
+        assertThat(listJson).doesNotContain("dr.private@example.com");
         assertThat(listJson).doesNotContain("+971508889900");
 
         // 2. GET /api/doctors/{id} (public detail)
@@ -140,7 +140,7 @@ class DoctorManagementTest {
         assertThat(detailNode.has("phone")).isFalse();
         assertThat(detailNode.has("userId")).isFalse();
         assertThat(detailNode.has("user")).isFalse();
-        assertThat(detailJson).doesNotContain("dr.private@aster.ae");
+        assertThat(detailJson).doesNotContain("dr.private@example.com");
         assertThat(detailJson).doesNotContain("+971508889900");
 
         // Inactive doctor returns 404 from public endpoint
@@ -152,7 +152,7 @@ class DoctorManagementTest {
     @DisplayName("Admin doctor endpoints: 401 unauthenticated, 403 wrong roles")
     void adminDoctorSecurityChecks() throws Exception {
         DoctorCreateRequest req = new DoctorCreateRequest(
-            "newdoc@aster.ae", "+971505556677", "Dr. Bob", "InitialPassword123",
+            "newdoc@example.com", "+971505556677", "Dr. Bob", "InitialPassword123",
             "Bio", "MD", "English", 5, "photo.jpg", BigDecimal.valueOf(250),
             Set.of(specialty.getId()), Set.of(branch.getId())
         );
@@ -180,7 +180,7 @@ class DoctorManagementTest {
     void adminCreateDoctorTransactionAndValidation() throws Exception {
         // 1. Password < 8 characters rejected
         DoctorCreateRequest shortPassReq = new DoctorCreateRequest(
-            "short@aster.ae", "+971505556600", "Dr. Short", "1234567",
+            "short@example.com", "+971505556600", "Dr. Short", "1234567",
             "Bio", "MD", "English", 5, "photo.jpg", BigDecimal.valueOf(250),
             Set.of(specialty.getId()), Set.of(branch.getId())
         );
@@ -193,7 +193,7 @@ class DoctorManagementTest {
 
         // 2. Valid create: creates User and Doctor profile together
         DoctorCreateRequest validReq = new DoctorCreateRequest(
-            "dr.john@aster.ae", "+971505556611", "Dr. John Doe", "InitialPassword123",
+            "dr.john@example.com", "+971505556611", "Dr. John Doe", "InitialPassword123",
             "Cardiologist bio", "MBBS, FACC", "English, Hindi", 10, "photo.jpg", BigDecimal.valueOf(300),
             Set.of(specialty.getId()), Set.of(branch.getId())
         );
@@ -203,14 +203,14 @@ class DoctorManagementTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(validReq)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email").value("dr.john@aster.ae"))
+                .andExpect(jsonPath("$.email").value("dr.john@example.com"))
                 .andExpect(jsonPath("$.fullName").value("Dr. John Doe"))
                 .andReturn().getResponse().getContentAsString();
 
         Long doctorId = objectMapper.readTree(res).get("id").asLong();
 
         // Verify User was created in DB with Role.DOCTOR
-        User createdUser = userRepository.findByEmail("dr.john@aster.ae").orElseThrow();
+        User createdUser = userRepository.findByEmail("dr.john@example.com").orElseThrow();
         assertThat(createdUser.getRole()).isEqualTo(Role.DOCTOR);
         assertThat(createdUser.isEnabled()).isTrue();
 
@@ -224,7 +224,7 @@ class DoctorManagementTest {
     @DisplayName("Admin deactivate doctor: disables linked user and revokes refresh tokens")
     void adminDeactivateDoctorDisablesUserAndRevokesTokens() throws Exception {
         // Create doctor user and doctor profile
-        User docUser = userRepository.save(new User("dr.retire@aster.ae", "+971509990011", "pass", Role.DOCTOR, "Dr. Retire"));
+        User docUser = userRepository.save(new User("dr.retire@example.com", "+971509990011", "pass", Role.DOCTOR, "Dr. Retire"));
         Doctor doc = new Doctor(docUser, "Bio", "MBBS", "English", 20, BigDecimal.valueOf(400));
         doc = doctorRepository.save(doc);
 

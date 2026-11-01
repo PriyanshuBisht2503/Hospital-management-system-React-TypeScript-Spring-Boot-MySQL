@@ -380,3 +380,4 @@ export const SpecialtiesPage: React.FC = () => {
     </div>
   );
 };
+

@@ -24,11 +24,11 @@ class UserRepositoryTest {
     @Test
     @DisplayName("Should successfully persist user with email and password")
     void shouldPersistUserWithEmail() {
-        User user = new User("doctor1@aster.ae", "+971501112233", "hashedPass", Role.DOCTOR, "Dr. John Doe");
+        User user = new User("doctor1@example.com", "+971501112233", "hashedPass", Role.DOCTOR, "Dr. John Doe");
         User saved = userRepository.save(user);
 
         assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getEmail()).isEqualTo("doctor1@aster.ae");
+        assertThat(saved.getEmail()).isEqualTo("doctor1@example.com");
         assertThat(saved.getRole()).isEqualTo(Role.DOCTOR);
         assertThat(saved.isEnabled()).isTrue();
         assertThat(saved.getCreatedAt()).isNotNull();
@@ -50,10 +50,10 @@ class UserRepositoryTest {
     @Test
     @DisplayName("Should enforce unique email constraint")
     void shouldEnforceUniqueEmail() {
-        User u1 = new User("unique@aster.ae", "+971501000001", "pass1", Role.RECEPTIONIST, "Staff One");
+        User u1 = new User("unique@example.com", "+971501000001", "pass1", Role.RECEPTIONIST, "Staff One");
         userRepository.saveAndFlush(u1);
 
-        User u2 = new User("unique@aster.ae", "+971501000002", "pass2", Role.RECEPTIONIST, "Staff Two");
+        User u2 = new User("unique@example.com", "+971501000002", "pass2", Role.RECEPTIONIST, "Staff Two");
         assertThatThrownBy(() -> userRepository.saveAndFlush(u2))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -61,8 +61,8 @@ class UserRepositoryTest {
     @Test
     @DisplayName("Should count users by role and search correctly")
     void shouldCountAndSearchUsers() {
-        userRepository.save(new User("admin.test@aster.ae", "+971502000001", "pass", Role.ADMIN, "Admin Test"));
-        userRepository.save(new User("nurse.test@aster.ae", "+971502000002", "pass", Role.RECEPTIONIST, "Nurse Test"));
+        userRepository.save(new User("admin.test@example.com", "+971502000001", "pass", Role.ADMIN, "Admin Test"));
+        userRepository.save(new User("nurse.test@example.com", "+971502000002", "pass", Role.RECEPTIONIST, "Nurse Test"));
 
         long adminCount = userRepository.countByRole(Role.ADMIN);
         assertThat(adminCount).isGreaterThanOrEqualTo(1);

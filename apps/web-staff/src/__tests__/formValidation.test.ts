@@ -6,13 +6,13 @@ describe('Form Validation and Backend Error Mapping', () => {
   describe('Zod Client Validation', () => {
     it('succeeds for valid staff email and password', () => {
       const result = loginSchema.safeParse({
-        email: 'doctor@aster.ae',
+        email: 'doctor@example.com',
         password: 'ValidPassword123!',
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.email).toBe('doctor@aster.ae');
+        expect(result.data.email).toBe('doctor@example.com');
       }
     });
 
@@ -46,7 +46,7 @@ describe('Form Validation and Backend Error Mapping', () => {
 
     it('rejects empty password with "Password is required"', () => {
       const result = loginSchema.safeParse({
-        email: 'doctor@aster.ae',
+        email: 'doctor@example.com',
         password: '',
       });
 

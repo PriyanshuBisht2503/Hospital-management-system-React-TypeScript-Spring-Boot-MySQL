@@ -76,10 +76,10 @@ class FileStorageTest {
         fileRecordRepository.deleteAll();
         userRepository.deleteAll();
 
-        admin = userRepository.save(new User("admin@aster.ae", "+971501111111", "hash", Role.ADMIN, "Admin User"));
-        doctorUser = userRepository.save(new User("doc@aster.ae", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
-        receptionistUser = userRepository.save(new User("rec@aster.ae", "+971503333334", "hash", Role.RECEPTIONIST, "Receptionist User"));
-        patientUser = userRepository.save(new User("pat@aster.ae", "+971503333333", "hash", Role.PATIENT, "Patient User"));
+        admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
+        doctorUser = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
+        receptionistUser = userRepository.save(new User("rec@example.com", "+971503333334", "hash", Role.RECEPTIONIST, "Receptionist User"));
+        patientUser = userRepository.save(new User("pat@example.com", "+971503333333", "hash", Role.PATIENT, "Patient User"));
 
         adminToken = "Bearer " + jwtTokenProvider.generateAccessToken(admin);
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doctorUser);

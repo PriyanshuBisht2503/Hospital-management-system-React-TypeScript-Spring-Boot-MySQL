@@ -380,3 +380,4 @@ export const DepartmentsPage: React.FC = () => {
     </div>
   );
 };
+

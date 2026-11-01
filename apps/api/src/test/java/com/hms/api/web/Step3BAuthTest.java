@@ -85,7 +85,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Patient OTP send: uniform response for existing and non-existing accounts (no enumeration)")
     void patientOtpSendUniformResponse() throws Exception {
-        OtpSendRequest req = new OtpSendRequest("patient1@aster.ae");
+        OtpSendRequest req = new OtpSendRequest("patient1@example.com");
 
         mockMvc.perform(post("/api/auth/otp/send")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -94,13 +94,13 @@ class Step3BAuthTest {
                 .andExpect(jsonPath("$.message").value("If the account exists or is eligible, a one-time verification code has been sent."));
 
         // Verify OTP is hashed in DB
-        Optional<OtpCode> saved = otpCodeRepository.findTopByTargetOrderByCreatedAtDesc("patient1@aster.ae");
+        Optional<OtpCode> saved = otpCodeRepository.findTopByTargetOrderByCreatedAtDesc("patient1@example.com");
         assertThat(saved).isPresent();
         assertThat(saved.get().getCodeHash()).isNotBlank();
         assertThat(saved.get().isExpired()).isFalse();
 
         // Second call with different target returns identical response
-        OtpSendRequest nonExistent = new OtpSendRequest("random999@aster.ae");
+        OtpSendRequest nonExistent = new OtpSendRequest("random999@example.com");
         mockMvc.perform(post("/api/auth/otp/send")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(nonExistent)))
@@ -111,7 +111,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Patient OTP verify success: provisions PATIENT user and issues tokens with HttpOnly cookie")
     void patientOtpVerifySuccessAndAutoProvision() throws Exception {
-        String target = "newpatient@aster.ae";
+        String target = "newpatient@example.com";
         String rawCode = "123456";
         String hashedCode = jwtTokenProvider.hashToken(rawCode);
 
@@ -141,7 +141,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Patient OTP verify failure: invalid code increments attempts and fails with 400")
     void patientOtpVerifyInvalidCode() throws Exception {
-        String target = "patient@aster.ae";
+        String target = "patient@example.com";
         String rawCode = "123456";
         String hashedCode = jwtTokenProvider.hashToken(rawCode);
 
@@ -162,7 +162,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Patient OTP verify: exceeding 5 attempts deletes OTP and blocks verification")
     void patientOtpVerifyExceedingAttempts() throws Exception {
-        String target = "patient@aster.ae";
+        String target = "patient@example.com";
         String rawCode = "123456";
         String hashedCode = jwtTokenProvider.hashToken(rawCode);
 
@@ -185,7 +185,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Single-use OTP: successful verification immediately deletes the code and replay fails with 400")
     void singleUseOtpEnforced() throws Exception {
-        String target = "singleuse@aster.ae";
+        String target = "singleuse@example.com";
         String rawCode = "654321";
         String hashedCode = jwtTokenProvider.hashToken(rawCode);
 
@@ -220,7 +220,7 @@ class Step3BAuthTest {
     void registerPatientSuccess() throws Exception {
         RegisterPatientRequest req = new RegisterPatientRequest(
             "Fatima Al Mansoori",
-            "fatima@aster.ae",
+            "fatima@example.com",
             "+971501234567",
             "Password@123"
         );
@@ -233,12 +233,12 @@ class Step3BAuthTest {
                 .andExpect(jsonPath("$.accessToken").doesNotExist())
                 .andExpect(cookie().doesNotExist("hms_refresh_token"));
 
-        User saved = userRepository.findByEmail("fatima@aster.ae").orElseThrow();
+        User saved = userRepository.findByEmail("fatima@example.com").orElseThrow();
         assertThat(saved.getRole()).isEqualTo(Role.PATIENT);
         assertThat(passwordEncoder.matches("Password@123", saved.getPasswordHash())).isTrue();
 
         // OTP code was dispatched to patient's email
-        Optional<OtpCode> otpOpt = otpCodeRepository.findTopByTargetOrderByCreatedAtDesc("fatima@aster.ae");
+        Optional<OtpCode> otpOpt = otpCodeRepository.findTopByTargetOrderByCreatedAtDesc("fatima@example.com");
         assertThat(otpOpt).isPresent();
     }
 
@@ -264,7 +264,7 @@ class Step3BAuthTest {
     void registerPatientFailsShortPassword() throws Exception {
         RegisterPatientRequest req = new RegisterPatientRequest(
             "Short Pass Patient",
-            "short@aster.ae",
+            "short@example.com",
             "+971509998877",
             "short"
         );
@@ -282,11 +282,11 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Password reset request: uniform response for existing and non-existing email (no enumeration)")
     void passwordResetRequestUniformResponse() throws Exception {
-        User user = new User("doctor@aster.ae", "+971501112244", passwordEncoder.encode("OldPassword123"), Role.DOCTOR, "Dr. Reset");
+        User user = new User("doctor@example.com", "+971501112244", passwordEncoder.encode("OldPassword123"), Role.DOCTOR, "Dr. Reset");
         userRepository.save(user);
 
         // Existing user
-        PasswordResetRequest req = new PasswordResetRequest("doctor@aster.ae");
+        PasswordResetRequest req = new PasswordResetRequest("doctor@example.com");
         mockMvc.perform(post("/api/auth/password-reset/request")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
@@ -297,7 +297,7 @@ class Step3BAuthTest {
         assertThat(tokens).isNotEmpty();
 
         // Non-existent user
-        PasswordResetRequest fakeReq = new PasswordResetRequest("ghost@aster.ae");
+        PasswordResetRequest fakeReq = new PasswordResetRequest("ghost@example.com");
         mockMvc.perform(post("/api/auth/password-reset/request")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(fakeReq)))
@@ -308,7 +308,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Password reset confirm: updates password hash, clears lockout counters, and revokes all refresh tokens")
     void passwordResetConfirmSuccess() throws Exception {
-        User user = new User("locked@aster.ae", "+971501119999", passwordEncoder.encode("OldPassword123"), Role.PATIENT, "Locked Patient");
+        User user = new User("locked@example.com", "+971501119999", passwordEncoder.encode("OldPassword123"), Role.PATIENT, "Locked Patient");
         user.setFailedLoginCount(5);
         user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
@@ -346,7 +346,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Password reset confirm fails if token is invalid or already used")
     void passwordResetConfirmFailsForUsedToken() throws Exception {
-        User user = new User("user@aster.ae", "+971508887766", passwordEncoder.encode("OldPass@123"), Role.PATIENT, "Patient User");
+        User user = new User("user@example.com", "+971508887766", passwordEncoder.encode("OldPass@123"), Role.PATIENT, "Patient User");
         userRepository.save(user);
 
         String rawToken = "already-used-token";
@@ -371,7 +371,7 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Rate limiting on OTP endpoint: returns 429 after 3 attempts against same email or phone target")
     void otpPerTargetRateLimitingEnforced() throws Exception {
-        OtpSendRequest req = new OtpSendRequest("target-limit@aster.ae");
+        OtpSendRequest req = new OtpSendRequest("target-limit@example.com");
 
         // 3 requests allowed per target
         for (int i = 0; i < 3; i++) {
@@ -395,7 +395,7 @@ class Step3BAuthTest {
     void otpIpRateLimitingEnforced() throws Exception {
         // 5 requests allowed from same IP (using different targets to avoid target limit)
         for (int i = 1; i <= 5; i++) {
-            OtpSendRequest req = new OtpSendRequest("unique" + i + "@aster.ae");
+            OtpSendRequest req = new OtpSendRequest("unique" + i + "@example.com");
             mockMvc.perform(post("/api/auth/otp/send")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
@@ -403,7 +403,7 @@ class Step3BAuthTest {
         }
 
         // 6th request from same IP is rate-limited
-        OtpSendRequest req6 = new OtpSendRequest("unique6@aster.ae");
+        OtpSendRequest req6 = new OtpSendRequest("unique6@example.com");
         mockMvc.perform(post("/api/auth/otp/send")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req6)))
@@ -415,10 +415,10 @@ class Step3BAuthTest {
     @Test
     @DisplayName("Rate limiting on login endpoint by attempted email: returns 429 after 10 attempts against same email")
     void loginRateLimitingByEmailEnforced() throws Exception {
-        User user = new User("target@aster.ae", "+971501113355", passwordEncoder.encode("Secret@123"), Role.PATIENT, "Target User");
+        User user = new User("target@example.com", "+971501113355", passwordEncoder.encode("Secret@123"), Role.PATIENT, "Target User");
         userRepository.save(user);
 
-        LoginRequest badReq = new LoginRequest("target@aster.ae", "WrongPassword123");
+        LoginRequest badReq = new LoginRequest("target@example.com", "WrongPassword123");
 
         // 10 requests against the target email
         for (int i = 0; i < 10; i++) {

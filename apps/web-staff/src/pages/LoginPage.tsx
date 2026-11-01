@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../types/auth';
-import { Button, Input, Card } from '@hms/ui';
+import { Button, Input, Card, APP_NAME } from '@hms/ui';
 
 export const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
@@ -135,10 +135,10 @@ export const LoginPage: React.FC = () => {
             H
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-            Hospital Staff Portal
+            {APP_NAME} Staff Portal
           </h1>
           <p style={{ fontSize: '14px', color: '#64748b', marginTop: '6px', marginBottom: 0 }}>
-            Authorized Aster Hospital Staff Access Only
+            Authorized {APP_NAME} Staff Access Only
           </p>
         </div>
 
@@ -186,7 +186,7 @@ export const LoginPage: React.FC = () => {
               <Input
                 label="Staff Email Address"
                 type="email"
-                placeholder="doctor@aster.ae"
+                placeholder="doctor@example.com"
                 autoComplete="email"
                 error={errors.email?.message}
                 {...register('email')}

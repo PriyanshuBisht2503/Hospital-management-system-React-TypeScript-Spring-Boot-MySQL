@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from './Badge';
 import { Button } from './Button';
+import { APP_NAME } from '../constants';
 
 export interface NavItem {
   label: string;
@@ -63,7 +64,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
             </div>
             <div>
               <div style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.3px', color: '#ffffff' }}>
-                ASTER HMS
+                {APP_NAME}
               </div>
               <div style={{ fontSize: '11px', color: '#94a3b8' }}>
                 Hospital Staff Portal
@@ -115,7 +116,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
 
         {/* Footer info */}
         <div style={{ padding: '16px 20px', borderTop: '1px solid #1e293b', fontSize: '11px', color: '#64748b' }}>
-          Aster Hospital • UAE
+          {APP_NAME} • Healthcare System
         </div>
       </aside>
 
@@ -185,3 +186,4 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
     </div>
   );
 };
+

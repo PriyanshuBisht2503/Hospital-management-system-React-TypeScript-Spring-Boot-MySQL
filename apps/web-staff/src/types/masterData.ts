@@ -17,8 +17,8 @@ export interface Branch {
   phone?: string;
   email?: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Department {
@@ -27,8 +27,8 @@ export interface Department {
   name: string;
   description?: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Specialty {
@@ -37,20 +37,26 @@ export interface Specialty {
   name: string;
   description?: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export type RoomType =
+  | 'CONSULTATION'
+  | 'OPD'
+  | 'PROCEDURE'
+  | 'TRIAGE'
+  | 'WARD'
+  | 'ICU'
+  | 'OPERATION_THEATRE';
 
 export interface Room {
   id: number;
+  roomNumber: string;
   branchId: number;
   branchName: string;
   departmentId: number;
   departmentName: string;
-  roomNumber: string;
-  roomType: string;
-  floorNumber: string;
+  type: RoomType;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }

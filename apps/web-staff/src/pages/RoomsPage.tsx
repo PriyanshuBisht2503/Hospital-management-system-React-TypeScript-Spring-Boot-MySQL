@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { apiRequest } from '../api/client';
-import { Room, Branch, Department, PageResponse } from '../types/masterData';
+import { Room, RoomType, Branch, Department, PageResponse } from '../types/masterData';
 import { ApiError } from '../types/auth';
 import {
   Button,
@@ -24,22 +24,31 @@ import {
 } from '@hms/ui';
 import { Search, Plus, Edit2, Ban } from 'lucide-react';
 
-const roomSchema = z.object({
+export const roomSchema = z.object({
   branchId: z.coerce.number().min(1, 'Please select a branch'),
   departmentId: z.coerce.number().min(1, 'Please select a department'),
   roomNumber: z.string().min(1, 'Room number is required'),
-  roomType: z.string().min(1, 'Room type is required'),
-  floorNumber: z.string().min(1, 'Floor number is required'),
+  type: z.enum([
+    'CONSULTATION',
+    'OPD',
+    'PROCEDURE',
+    'TRIAGE',
+    'WARD',
+    'ICU',
+    'OPERATION_THEATRE',
+  ]),
 });
 
-type RoomFormData = z.infer<typeof roomSchema>;
+export type RoomFormData = z.infer<typeof roomSchema>;
 
-const ROOM_TYPES = [
+export const ROOM_TYPES: { value: RoomType; label: string }[] = [
   { value: 'CONSULTATION', label: 'Consultation Room' },
+  { value: 'OPD', label: 'Outpatient Department (OPD)' },
+  { value: 'PROCEDURE', label: 'Procedure Room' },
+  { value: 'TRIAGE', label: 'Triage' },
+  { value: 'WARD', label: 'Inpatient Ward' },
   { value: 'ICU', label: 'Intensive Care Unit (ICU)' },
-  { value: 'OPERATION_THEATER', label: 'Operation Theater' },
-  { value: 'EMERGENCY', label: 'Emergency Room' },
-  { value: 'GENERAL_WARD', label: 'General Ward' },
+  { value: 'OPERATION_THEATRE', label: 'Operation Theatre' },
 ];
 
 export const RoomsPage: React.FC = () => {
@@ -163,8 +172,7 @@ export const RoomsPage: React.FC = () => {
       branchId: branchesQuery.data?.content[0]?.id || 1,
       departmentId: departmentsQuery.data?.content[0]?.id || 1,
       roomNumber: '',
-      roomType: 'CONSULTATION',
-      floorNumber: 'Floor 1',
+      type: 'CONSULTATION',
     });
     setIsModalOpen(true);
   };
@@ -176,8 +184,7 @@ export const RoomsPage: React.FC = () => {
       branchId: room.branchId,
       departmentId: room.departmentId,
       roomNumber: room.roomNumber,
-      roomType: room.roomType,
-      floorNumber: room.floorNumber,
+      type: room.type,
     });
     setIsModalOpen(true);
   };
@@ -230,7 +237,7 @@ export const RoomsPage: React.FC = () => {
             Hospital Rooms & Facilities
           </h1>
           <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-            Manage consultation clinics, operation theaters, and inpatient wards
+            Manage consultation clinics, operation theatres, and inpatient rooms
           </p>
         </div>
         <Button variant="primary" size="md" onClick={openCreateModal}>
@@ -297,7 +304,6 @@ export const RoomsPage: React.FC = () => {
                   <TableHead>Branch</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Floor</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead style={{ textAlign: 'right' }}>Actions</TableHead>
                 </TableRow>
@@ -309,9 +315,8 @@ export const RoomsPage: React.FC = () => {
                     <TableCell>{room.branchName}</TableCell>
                     <TableCell>{room.departmentName}</TableCell>
                     <TableCell>
-                      <Badge variant="neutral">{room.roomType}</Badge>
+                      <Badge variant="neutral">{room.type}</Badge>
                     </TableCell>
-                    <TableCell style={{ color: '#64748b', fontSize: '13px' }}>{room.floorNumber}</TableCell>
                     <TableCell>
                       {room.isActive ? (
                         <Badge variant="success">Active</Badge>
@@ -395,15 +400,8 @@ export const RoomsPage: React.FC = () => {
           <Select
             label="Room Type"
             options={ROOM_TYPES}
-            error={errors.roomType?.message}
-            {...register('roomType')}
-          />
-
-          <Input
-            label="Floor Location"
-            placeholder="e.g. Ground Floor, Wing B"
-            error={errors.floorNumber?.message}
-            {...register('floorNumber')}
+            error={errors.type?.message}
+            {...register('type')}
           />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>

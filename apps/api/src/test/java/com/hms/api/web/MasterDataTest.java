@@ -70,10 +70,10 @@ class MasterDataTest {
         specialtyRepository.deleteAll();
         userRepository.deleteAll();
 
-        User admin = userRepository.save(new User("admin@aster.ae", "+971501111111", "hash", Role.ADMIN, "Admin User"));
-        User doc = userRepository.save(new User("doc@aster.ae", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
-        User rec = userRepository.save(new User("rec@aster.ae", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
-        User pat = userRepository.save(new User("pat@aster.ae", "+971504444444", "hash", Role.PATIENT, "Patient User"));
+        User admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
+        User doc = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
+        User rec = userRepository.save(new User("rec@example.com", "+971503333333", "hash", Role.RECEPTIONIST, "Receptionist User"));
+        User pat = userRepository.save(new User("pat@example.com", "+971504444444", "hash", Role.PATIENT, "Patient User"));
 
         adminToken = "Bearer " + jwtTokenProvider.generateAccessToken(admin);
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doc);
@@ -88,8 +88,8 @@ class MasterDataTest {
     @Test
     @DisplayName("Public can list active branches unauthenticated; inactive branches hidden")
     void publicCanListActiveBranchesOnly() throws Exception {
-        Branch b1 = branchRepository.save(new Branch("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "info@aster.ae"));
-        Branch b2 = new Branch("Old Inactive Branch", "OLD-01", "Deira", "Dubai", "043940001", "old@aster.ae");
+        Branch b1 = branchRepository.save(new Branch("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "info@example.com"));
+        Branch b2 = new Branch("Old Inactive Branch", "OLD-01", "Deira", "Dubai", "043940001", "old@example.com");
         b2.setActive(false);
         branchRepository.save(b2);
 
@@ -112,7 +112,7 @@ class MasterDataTest {
     @Test
     @DisplayName("Branch write: 401 unauthenticated, 403 for DOCTOR, RECEPTIONIST, PATIENT")
     void branchWriteSecurityChecks() throws Exception {
-        BranchRequest req = new BranchRequest("Qusais Clinic", "QUS-01", "Al Qusais", "Dubai", "042940000", "qus@aster.ae");
+        BranchRequest req = new BranchRequest("Qusais Clinic", "QUS-01", "Al Qusais", "Dubai", "042940000", "qus@example.com");
         String json = objectMapper.writeValueAsString(req);
 
         // 401 unauthenticated
@@ -135,7 +135,7 @@ class MasterDataTest {
     @Test
     @DisplayName("Branch happy path: ADMIN create, update, soft delete")
     void branchHappyPath() throws Exception {
-        BranchRequest createReq = new BranchRequest("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "info@aster.ae");
+        BranchRequest createReq = new BranchRequest("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "info@example.com");
 
         // 1. Create
         String response = mockMvc.perform(post("/api/branches")
@@ -150,7 +150,7 @@ class MasterDataTest {
         Long branchId = objectMapper.readTree(response).get("id").asLong();
 
         // 2. Update
-        BranchRequest updateReq = new BranchRequest("Aster Mankhool Hospital", "MANK-01", "Kuwait Street", "Dubai", "043940000", "mankhool@aster.ae");
+        BranchRequest updateReq = new BranchRequest("Aster Mankhool Hospital", "MANK-01", "Kuwait Street", "Dubai", "043940000", "mankhool@example.com");
         mockMvc.perform(put("/api/branches/" + branchId)
                 .header("Authorization", adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -170,11 +170,11 @@ class MasterDataTest {
     @Test
     @DisplayName("Branch 409 Conflict: duplicate code and deactivation rejected if referenced")
     void branchConflictRules() throws Exception {
-        Branch b1 = branchRepository.save(new Branch("Branch 1", "B-01", "Add 1", "Dubai", "111", "b1@aster.ae"));
+        Branch b1 = branchRepository.save(new Branch("Branch 1", "B-01", "Add 1", "Dubai", "111", "b1@example.com"));
         Department dept = departmentRepository.save(new Department("Cardiology", "CARD-01", "Heart"));
 
         // 1. Duplicate code rejected with 409
-        BranchRequest duplicateReq = new BranchRequest("Another Branch", "B-01", "Add 2", "Dubai", "222", "b2@aster.ae");
+        BranchRequest duplicateReq = new BranchRequest("Another Branch", "B-01", "Add 2", "Dubai", "222", "b2@example.com");
         mockMvc.perform(post("/api/branches")
                 .header("Authorization", adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -193,7 +193,7 @@ class MasterDataTest {
 
         // Also test doctor reference rejection
         roomRepository.deleteAll();
-        User docUser = userRepository.save(new User("doc3@aster.ae", "+971509991122", "pass", Role.DOCTOR, "Dr. Ref"));
+        User docUser = userRepository.save(new User("doc3@example.com", "+971509991122", "pass", Role.DOCTOR, "Dr. Ref"));
         Doctor doc = new Doctor(docUser, "Bio", "MBBS", "English", 5, BigDecimal.valueOf(300));
         doc.setBranches(Set.of(b1));
         doctorRepository.save(doc);
@@ -292,7 +292,7 @@ class MasterDataTest {
 
         // Attach an active doctor
         Specialty spec = specialtyRepository.findById(specId).orElseThrow();
-        User docUser = userRepository.save(new User("doc4@aster.ae", "+971509993344", "pass", Role.DOCTOR, "Dr. Heart"));
+        User docUser = userRepository.save(new User("doc4@example.com", "+971509993344", "pass", Role.DOCTOR, "Dr. Heart"));
         Doctor doc = new Doctor(docUser, "Bio", "MBBS", "English", 8, BigDecimal.valueOf(400));
         doc.setSpecialties(Set.of(spec));
         doctorRepository.save(doc);

@@ -69,7 +69,7 @@ class RoleEndpointSecurityMatrixTest {
     @BeforeAll
     void initTokens() {
         for (Role role : Role.values()) {
-            String email = "matrix." + role.name().toLowerCase() + "@aster.ae";
+            String email = "matrix." + role.name().toLowerCase() + "@example.com";
             User user = userRepository.findByEmail(email).orElseGet(() ->
                 userRepository.save(new User(email, "+97150000" + role.ordinal(), "hash", role, "Matrix " + role.name()))
             );

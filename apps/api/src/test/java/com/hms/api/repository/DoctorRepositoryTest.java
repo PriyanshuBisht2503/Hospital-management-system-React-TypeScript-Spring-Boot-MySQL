@@ -33,7 +33,7 @@ class DoctorRepositoryTest {
     @Test
     @DisplayName("Should save doctor with associated specialties and branches in one transaction")
     void shouldSaveDoctorWithSpecialtiesAndBranches() {
-        User docUser = userRepository.save(new User("dr.ayman@aster.ae", "+971501234567", "pass", Role.DOCTOR, "Dr. Ayman Saeed"));
+        User docUser = userRepository.save(new User("dr.ayman@example.com", "+971501234567", "pass", Role.DOCTOR, "Dr. Ayman Saeed"));
         Specialty cardio = specialtyRepository.save(new Specialty("Cardiology", "CARD-SPEC", "Heart"));
         Branch branch = branchRepository.save(new Branch("Aster Mankhool", "MANK-BR", "Dubai", "Dubai", null, null));
 
@@ -55,8 +55,8 @@ class DoctorRepositoryTest {
     @Test
     @DisplayName("Should exclude inactive (soft-deleted) doctors from public searches")
     void shouldExcludeInactiveDoctorsFromPublicSearches() {
-        User u1 = userRepository.save(new User("active.doc@aster.ae", "+971500000010", "pass", Role.DOCTOR, "Dr. Active"));
-        User u2 = userRepository.save(new User("inactive.doc@aster.ae", "+971500000020", "pass", Role.DOCTOR, "Dr. Inactive"));
+        User u1 = userRepository.save(new User("active.doc@example.com", "+971500000010", "pass", Role.DOCTOR, "Dr. Active"));
+        User u2 = userRepository.save(new User("inactive.doc@example.com", "+971500000020", "pass", Role.DOCTOR, "Dr. Inactive"));
 
         Doctor activeDoc = new Doctor(u1, "Active Bio", "MD", "English", 5, new BigDecimal("300.00"));
         Doctor inactiveDoc = new Doctor(u2, "Inactive Bio", "MD", "English", 10, new BigDecimal("300.00"));

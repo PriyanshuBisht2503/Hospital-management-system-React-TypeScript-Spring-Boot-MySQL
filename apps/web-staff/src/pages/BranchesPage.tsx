@@ -202,7 +202,7 @@ export const BranchesPage: React.FC = () => {
             Hospital Branches
           </h1>
           <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-            Manage Aster hospital branches and physical campus locations across the UAE
+            Manage hospital branches and physical healthcare campus locations
           </p>
         </div>
         <Button variant="primary" size="md" onClick={openCreateModal}>
@@ -353,7 +353,7 @@ export const BranchesPage: React.FC = () => {
 
           <Input
             label="Branch Name"
-            placeholder="e.g. Aster Hospital - Mankhool"
+            placeholder="e.g. CareHMS Main Campus"
             error={errors.name?.message}
             {...register('name')}
           />
@@ -382,7 +382,7 @@ export const BranchesPage: React.FC = () => {
           <Input
             label="Email Address"
             type="email"
-            placeholder="e.g. mankhool@aster.ae"
+            placeholder="e.g. branch@example.com"
             error={errors.email?.message}
             {...register('email')}
           />
@@ -416,3 +416,4 @@ export const BranchesPage: React.FC = () => {
     </div>
   );
 };
+

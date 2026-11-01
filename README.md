@@ -1,6 +1,6 @@
-# Hospital Management System (HMS)
+# CareHMS - Hospital Management System
 
-A modular, enterprise-grade Hospital Management System modelled on the Aster Hospitals (UAE) ecosystem.
+A modular, enterprise-grade Hospital Management System.
 
 ## Architecture
 
