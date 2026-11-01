@@ -65,20 +65,20 @@ public class DevDataSeeder implements CommandLineRunner {
         if (branchRepository.count() == 0) {
             log.info("[DevDataSeeder] Seeding initial hospital branches...");
             Branch b1 = new Branch(
-                "CareHMS Mankhool",
-                "DXB-MANKHOOL",
-                "Kuwait Street, Al Mankhool",
+                "Central Branch",
+                "BRANCH-CENTRAL",
+                "100 Medical City Way",
                 "Dubai",
-                "+97144400500",
-                "mankhool@example.com"
+                "+971 4 000 0001",
+                "central.branch@example.com"
             );
             Branch b2 = new Branch(
-                "CareHMS Al Qusais",
-                "DXB-QUSAIS",
-                "9A Street, Al Qusais Industrial 2",
+                "North Clinic",
+                "BRANCH-NORTH",
+                "200 Health Plaza",
                 "Dubai",
-                "+97144400600",
-                "qusais@example.com"
+                "+971 4 000 0002",
+                "north.branch@example.com"
             );
             branchRepository.save(b1);
             branchRepository.save(b2);
@@ -111,7 +111,7 @@ public class DevDataSeeder implements CommandLineRunner {
             log.info("[DevDataSeeder] Seeding ADMIN demo account: {}", DEMO_ADMIN_EMAIL);
             User admin = new User(
                 DEMO_ADMIN_EMAIL,
-                "+971509990001",
+                "+971 4 000 1001",
                 passwordEncoder.encode("admin@123"),
                 Role.ADMIN,
                 "System Administrator (Demo)"
@@ -128,7 +128,7 @@ public class DevDataSeeder implements CommandLineRunner {
             log.info("[DevDataSeeder] Seeding DOCTOR demo account: {}", DEMO_DOCTOR_EMAIL);
             doctorUser = new User(
                 DEMO_DOCTOR_EMAIL,
-                "+971509990002",
+                "+971 4 000 1002",
                 passwordEncoder.encode("doctor@123"),
                 Role.DOCTOR,
                 "Dr. Sarah Khan (Demo)"
@@ -152,7 +152,7 @@ public class DevDataSeeder implements CommandLineRunner {
             doctor.setActive(true);
 
             specialtyRepository.findByCode("SPEC-INT-CARD").ifPresent(spec -> doctor.getSpecialties().add(spec));
-            branchRepository.findByCode("DXB-MANKHOOL").ifPresent(branch -> doctor.getBranches().add(branch));
+            branchRepository.findByCode("BRANCH-CENTRAL").ifPresent(branch -> doctor.getBranches().add(branch));
 
             doctorRepository.save(doctor);
             log.info("[DevDataSeeder] DOCTOR profile row seeded successfully.");
@@ -164,7 +164,7 @@ public class DevDataSeeder implements CommandLineRunner {
             log.info("[DevDataSeeder] Seeding RECEPTIONIST demo account: {}", DEMO_RECEPTIONIST_EMAIL);
             User receptionist = new User(
                 DEMO_RECEPTIONIST_EMAIL,
-                "+971509990003",
+                "+971 4 000 1003",
                 passwordEncoder.encode("receptionist@123"),
                 Role.RECEPTIONIST,
                 "Reception Desk Staff (Demo)"
@@ -179,7 +179,7 @@ public class DevDataSeeder implements CommandLineRunner {
             log.info("[DevDataSeeder] Seeding PATIENT demo account: {}", DEMO_PATIENT_EMAIL);
             User patient = new User(
                 DEMO_PATIENT_EMAIL,
-                "+971509990004",
+                "+971 4 000 1004",
                 null, // No password: OTP login only
                 Role.PATIENT,
                 "Demo Patient"

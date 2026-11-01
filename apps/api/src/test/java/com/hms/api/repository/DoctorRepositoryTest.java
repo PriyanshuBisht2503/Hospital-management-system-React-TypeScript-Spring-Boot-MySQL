@@ -35,7 +35,7 @@ class DoctorRepositoryTest {
     void shouldSaveDoctorWithSpecialtiesAndBranches() {
         User docUser = userRepository.save(new User("dr.ayman@example.com", "+971501234567", "pass", Role.DOCTOR, "Dr. Ayman Saeed"));
         Specialty cardio = specialtyRepository.save(new Specialty("Cardiology", "CARD-SPEC", "Heart"));
-        Branch branch = branchRepository.save(new Branch("Aster Mankhool", "MANK-BR", "Dubai", "Dubai", null, null));
+        Branch branch = branchRepository.save(new Branch("Central Branch", "CENTRAL-BR", "Dubai", "Dubai", null, null));
 
         Doctor doctor = new Doctor(docUser, "Senior Cardiologist", "MBBS, MD", "English, Arabic", 15, new BigDecimal("450.00"));
         doctor.getSpecialties().add(cardio);

@@ -21,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const restoreAttemptedRef = React.useRef(false);
 
   const clearError = useCallback(() => {
     setAuthError(null);
@@ -49,8 +50,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Silent session restoration on app load
+  // Silent session restoration on app load (guaranteed exactly once even in dev StrictMode)
   useEffect(() => {
+    if (restoreAttemptedRef.current) {
+      return;
+    }
+    restoreAttemptedRef.current = true;
+
     let isMounted = true;
 
     const restoreSession = async () => {

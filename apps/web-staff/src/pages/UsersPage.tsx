@@ -21,6 +21,7 @@ import {
   Pagination,
   ConfirmDialog,
   useToast,
+  DEFAULT_PAGE_SIZE,
 } from '@hms/ui';
 import { Search, Plus, ShieldAlert, UserCog, Power } from 'lucide-react';
 
@@ -67,9 +68,9 @@ export const UsersPage: React.FC = () => {
 
   // Fetch paginated users
   const { data, isLoading, isError, error, refetch } = useQuery<PageResponse<User>>({
-    queryKey: ['admin-users', page, search, roleFilter],
+    queryKey: ['admin-users', page, search, roleFilter, DEFAULT_PAGE_SIZE],
     queryFn: () => {
-      let url = `/api/admin/users?page=${page}&size=10&search=${encodeURIComponent(search)}`;
+      let url = `/api/admin/users?page=${page}&size=${DEFAULT_PAGE_SIZE}&search=${encodeURIComponent(search)}`;
       if (roleFilter) {
         url += `&role=${encodeURIComponent(roleFilter)}`;
       }
@@ -354,9 +355,12 @@ export const UsersPage: React.FC = () => {
             </Table>
 
             <Pagination
-              page={data.page}
+              pageNumber={data.pageNumber}
+              pageSize={data.pageSize}
               totalPages={data.totalPages}
               totalElements={data.totalElements}
+              isFirst={data.isFirst}
+              isLast={data.isLast}
               onPageChange={(newPage) => setPage(newPage)}
             />
           </>
@@ -501,3 +505,4 @@ export const UsersPage: React.FC = () => {
     </div>
   );
 };
+

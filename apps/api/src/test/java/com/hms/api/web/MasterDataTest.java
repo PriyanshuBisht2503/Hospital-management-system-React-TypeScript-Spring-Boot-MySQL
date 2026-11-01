@@ -150,13 +150,13 @@ class MasterDataTest {
         Long branchId = objectMapper.readTree(response).get("id").asLong();
 
         // 2. Update
-        BranchRequest updateReq = new BranchRequest("Aster Mankhool Hospital", "MANK-01", "Kuwait Street", "Dubai", "043940000", "mankhool@example.com");
+        BranchRequest updateReq = new BranchRequest("Central Branch Hospital", "MANK-01", "Kuwait Street", "Dubai", "043940000", "mankhool@example.com");
         mockMvc.perform(put("/api/branches/" + branchId)
                 .header("Authorization", adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateReq)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Aster Mankhool Hospital"));
+                .andExpect(jsonPath("$.name").value("Central Branch Hospital"));
 
         // 3. Soft Delete
         mockMvc.perform(delete("/api/branches/" + branchId)

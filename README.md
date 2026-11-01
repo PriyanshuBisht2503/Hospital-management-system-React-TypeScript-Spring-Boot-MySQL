@@ -36,7 +36,7 @@ A modular, enterprise-grade Hospital Management System.
 | Role | Email | Password | Auth Method | Notes |
 |------|-------|----------|-------------|-------|
 | `ADMIN` | `admin123@hms.local` | `admin@123` | Email & Password | Full system administration |
-| `DOCTOR` | `doctor123@hms.local` | `doctor@123` | Email & Password | Linked to doctor profile (Cardiology, Mankhool branch) |
+| `DOCTOR` | `doctor123@hms.local` | `doctor@123` | Email & Password | Linked to doctor profile (Cardiology, Central Branch) |
 | `RECEPTIONIST` | `receptionist123@hms.local` | `receptionist@123` | Email & Password | Front desk operations & check-in |
 | `PATIENT` | `patient123@hms.local` | _None_ | OTP verification (`/api/auth/otp/send`) | Patient portal & appointment booking |
 
@@ -59,6 +59,18 @@ A modular, enterprise-grade Hospital Management System.
    GRANT ALL PRIVILEGES ON hms_db.* TO 'hms'@'localhost';
    FLUSH PRIVILEGES;
    ```
+
+   > [!TIP]
+   > **Resetting Local Dev Database for Updated Seed Data:**
+   > Because `DevDataSeeder` is idempotent and only seeds when repositories are empty, to reset the dev database and populate fresh fictional seed data (e.g., Central Branch, North Clinic, updated dummy phone numbers):
+   > ```bash
+   > # Using Docker Compose:
+   > docker compose down -v
+   > docker compose up -d
+   > # Or manually in MySQL client:
+   > mysql -u root -p -e "DROP DATABASE hms_db; CREATE DATABASE hms_db; GRANT ALL PRIVILEGES ON hms_db.* TO 'hms'@'localhost'; FLUSH PRIVILEGES;"
+   > ```
+   > On the next startup of `apps/api`, Flyway migrations and `DevDataSeeder` will recreate tables and insert the new fictional records.
 
 2. **Install dependencies:**
    ```bash

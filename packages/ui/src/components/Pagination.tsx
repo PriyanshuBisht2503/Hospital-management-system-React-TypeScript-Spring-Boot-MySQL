@@ -1,32 +1,43 @@
 import React from 'react';
 import { Button } from './Button';
+import { DEFAULT_PAGE_SIZE } from '../constants';
 
 export interface PaginationProps {
-  page: number; // 0-indexed (Spring Data standard)
+  pageNumber?: number; // 0-indexed (Spring Data standard)
+  page?: number;       // fallback alias
+  pageSize?: number;
   totalPages: number;
   totalElements?: number;
+  isFirst?: boolean;
+  isLast?: boolean;
   onPageChange: (newPage: number) => void;
   style?: React.CSSProperties;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
+  pageNumber,
   page,
+  pageSize = DEFAULT_PAGE_SIZE,
   totalPages,
   totalElements,
+  isFirst,
+  isLast,
   onPageChange,
   style,
 }) => {
+  const currentPage = pageNumber !== undefined ? pageNumber : (page !== undefined ? page : 0);
+
   if (totalPages <= 1 && (totalElements === undefined || totalElements === 0)) {
     return null;
   }
 
-  const hasPrev = page > 0;
-  const hasNext = page < totalPages - 1;
+  const hasPrev = isFirst !== undefined ? !isFirst : currentPage > 0;
+  const hasNext = isLast !== undefined ? !isLast : currentPage < totalPages - 1;
 
   // Render a window of pages around current page
   const pageNumbers: number[] = [];
-  const startPage = Math.max(0, page - 2);
-  const endPage = Math.min(totalPages - 1, page + 2);
+  const startPage = Math.max(0, currentPage - 2);
+  const endPage = Math.min(totalPages - 1, currentPage + 2);
 
   for (let i = startPage; i <= endPage; i++) {
     pageNumbers.push(i);
@@ -52,11 +63,11 @@ export const Pagination: React.FC<PaginationProps> = ({
       <div>
         {totalElements !== undefined ? (
           <span>
-            Total: <strong>{totalElements}</strong> items (Page <strong>{page + 1}</strong> of <strong>{Math.max(1, totalPages)}</strong>)
+            Total: <strong>{totalElements}</strong> items (Page <strong>{currentPage + 1}</strong> of <strong>{Math.max(1, totalPages)}</strong>)
           </span>
         ) : (
           <span>
-            Page <strong>{page + 1}</strong> of <strong>{Math.max(1, totalPages)}</strong>
+            Page <strong>{currentPage + 1}</strong> of <strong>{Math.max(1, totalPages)}</strong>
           </span>
         )}
       </div>
@@ -66,7 +77,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           variant="outline"
           size="sm"
           disabled={!hasPrev}
-          onClick={() => onPageChange(page - 1)}
+          onClick={() => onPageChange(currentPage - 1)}
           style={{ padding: '4px 10px', fontSize: '12px' }}
         >
           Previous
@@ -92,7 +103,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         )}
 
         {pageNumbers.map((p) => {
-          const isActive = p === page;
+          const isActive = p === currentPage;
           return (
             <button
               key={p}
@@ -136,7 +147,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           variant="outline"
           size="sm"
           disabled={!hasNext}
-          onClick={() => onPageChange(page + 1)}
+          onClick={() => onPageChange(currentPage + 1)}
           style={{ padding: '4px 10px', fontSize: '12px' }}
         >
           Next
@@ -145,4 +156,3 @@ export const Pagination: React.FC<PaginationProps> = ({
     </div>
   );
 };
-

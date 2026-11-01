@@ -127,10 +127,10 @@ describe('Master Data Frontend Validation and API Flows', () => {
             content: existingDepartments,
             totalElements: existingDepartments.length,
             totalPages: 1,
-            page: 0,
-            size: 10,
-            first: true,
-            last: true,
+            pageNumber: 0,
+            pageSize: 6,
+            isFirst: true,
+            isLast: true,
           };
           return new Response(JSON.stringify(pageRes), {
             status: 200,
@@ -203,3 +203,4 @@ describe('Master Data Frontend Validation and API Flows', () => {
     });
   });
 });
+

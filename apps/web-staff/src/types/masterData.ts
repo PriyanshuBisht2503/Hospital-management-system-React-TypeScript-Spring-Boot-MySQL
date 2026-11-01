@@ -1,11 +1,11 @@
 export interface PageResponse<T> {
   content: T[];
+  pageNumber: number;
+  pageSize: number;
   totalElements: number;
   totalPages: number;
-  page: number;
-  size: number;
-  first: boolean;
-  last: boolean;
+  isFirst: boolean;
+  isLast: boolean;
 }
 
 export interface Branch {

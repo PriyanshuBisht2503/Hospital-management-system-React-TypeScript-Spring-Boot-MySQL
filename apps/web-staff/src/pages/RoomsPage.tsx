@@ -21,6 +21,7 @@ import {
   Pagination,
   ConfirmDialog,
   useToast,
+  DEFAULT_PAGE_SIZE,
 } from '@hms/ui';
 import { Search, Plus, Edit2, Ban } from 'lucide-react';
 
@@ -75,10 +76,10 @@ export const RoomsPage: React.FC = () => {
 
   // Fetch paginated rooms
   const { data, isLoading, isError, error, refetch } = useQuery<PageResponse<Room>>({
-    queryKey: ['rooms', page, search],
+    queryKey: ['rooms', page, search, DEFAULT_PAGE_SIZE],
     queryFn: () =>
       apiRequest<PageResponse<Room>>(
-        `/api/rooms?page=${page}&size=10&search=${encodeURIComponent(search)}&activeOnly=false`
+        `/api/rooms?page=${page}&size=${DEFAULT_PAGE_SIZE}&search=${encodeURIComponent(search)}&activeOnly=false`
       ),
   });
 
@@ -152,6 +153,9 @@ export const RoomsPage: React.FC = () => {
       }),
     onSuccess: () => {
       toast.success('Room deactivated successfully');
+      if (data && data.content.length === 1 && page > 0) {
+        setPage((p) => Math.max(0, p - 1));
+      }
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       setDeactivatingRoom(null);
     },
@@ -352,9 +356,12 @@ export const RoomsPage: React.FC = () => {
             </Table>
 
             <Pagination
-              page={data.page}
+              pageNumber={data.pageNumber}
+              pageSize={data.pageSize}
               totalPages={data.totalPages}
               totalElements={data.totalElements}
+              isFirst={data.isFirst}
+              isLast={data.isLast}
               onPageChange={(newPage) => setPage(newPage)}
             />
           </>

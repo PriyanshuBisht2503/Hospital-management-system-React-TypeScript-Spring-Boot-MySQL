@@ -20,6 +20,7 @@ import {
   Pagination,
   ConfirmDialog,
   useToast,
+  DEFAULT_PAGE_SIZE,
 } from '@hms/ui';
 import { Search, Plus, Edit2, Ban } from 'lucide-react';
 
@@ -58,10 +59,10 @@ export const BranchesPage: React.FC = () => {
 
   // Fetch paginated branches
   const { data, isLoading, isError, error, refetch } = useQuery<PageResponse<Branch>>({
-    queryKey: ['branches', page, search],
+    queryKey: ['branches', page, search, DEFAULT_PAGE_SIZE],
     queryFn: () =>
       apiRequest<PageResponse<Branch>>(
-        `/api/branches?page=${page}&size=10&search=${encodeURIComponent(search)}&activeOnly=false`
+        `/api/branches?page=${page}&size=${DEFAULT_PAGE_SIZE}&search=${encodeURIComponent(search)}&activeOnly=false`
       ),
   });
 
@@ -123,6 +124,9 @@ export const BranchesPage: React.FC = () => {
       }),
     onSuccess: () => {
       toast.success('Branch deactivated successfully');
+      if (data && data.content.length === 1 && page > 0) {
+        setPage((p) => Math.max(0, p - 1));
+      }
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       setDeactivatingBranch(null);
     },
@@ -320,9 +324,12 @@ export const BranchesPage: React.FC = () => {
             </Table>
 
             <Pagination
-              page={data.page}
+              pageNumber={data.pageNumber}
+              pageSize={data.pageSize}
               totalPages={data.totalPages}
               totalElements={data.totalElements}
+              isFirst={data.isFirst}
+              isLast={data.isLast}
               onPageChange={(newPage) => setPage(newPage)}
             />
           </>

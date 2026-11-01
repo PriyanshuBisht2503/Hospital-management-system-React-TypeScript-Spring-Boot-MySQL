@@ -20,6 +20,7 @@ import {
   Pagination,
   ConfirmDialog,
   useToast,
+  DEFAULT_PAGE_SIZE,
 } from '@hms/ui';
 import { Search, Plus, Edit2, Ban } from 'lucide-react';
 
@@ -55,10 +56,10 @@ export const SpecialtiesPage: React.FC = () => {
 
   // Fetch paginated specialties
   const { data, isLoading, isError, error, refetch } = useQuery<PageResponse<Specialty>>({
-    queryKey: ['specialties', page, search],
+    queryKey: ['specialties', page, search, DEFAULT_PAGE_SIZE],
     queryFn: () =>
       apiRequest<PageResponse<Specialty>>(
-        `/api/specialties?page=${page}&size=10&search=${encodeURIComponent(search)}&activeOnly=false`
+        `/api/specialties?page=${page}&size=${DEFAULT_PAGE_SIZE}&search=${encodeURIComponent(search)}&activeOnly=false`
       ),
   });
 
@@ -120,6 +121,9 @@ export const SpecialtiesPage: React.FC = () => {
       }),
     onSuccess: () => {
       toast.success('Specialty deactivated successfully');
+      if (data && data.content.length === 1 && page > 0) {
+        setPage((p) => Math.max(0, p - 1));
+      }
       queryClient.invalidateQueries({ queryKey: ['specialties'] });
       setDeactivatingSpecialty(null);
     },
@@ -306,9 +310,12 @@ export const SpecialtiesPage: React.FC = () => {
             </Table>
 
             <Pagination
-              page={data.page}
+              pageNumber={data.pageNumber}
+              pageSize={data.pageSize}
               totalPages={data.totalPages}
               totalElements={data.totalElements}
+              isFirst={data.isFirst}
+              isLast={data.isLast}
               onPageChange={(newPage) => setPage(newPage)}
             />
           </>

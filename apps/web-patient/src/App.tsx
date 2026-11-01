@@ -25,10 +25,10 @@ export default function App() {
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>myAster</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>CareHMS</span>
                 <Badge variant="info">Patient Portal (L2 / L3)</Badge>
               </div>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>Connected to Aster HMS Core Engine</span>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>Connected to CareHMS Core Engine</span>
             </div>
           </div>
 
@@ -114,7 +114,7 @@ export default function App() {
                 </div>
                 <div>
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Dr. Ayman Saeed</h3>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>Consultant Interventional Cardiologist • Aster Hospital Mankhool</div>
+                  <div style={{ fontSize: '13px', color: '#64748b' }}>Consultant Interventional Cardiologist • CareHMS Central Branch</div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '12px', color: '#334155' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <Calendar size={13} color="#0284c7" /> Mon, 03 Nov 2026
@@ -153,7 +153,7 @@ export default function App() {
       {/* Footer */}
       <footer style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '20px 24px', fontSize: '13px', color: '#64748b' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>© 2026 myAster Patient Portal. Powered by Aster HMS Core API.</div>
+          <div>© 2026 CareHMS Patient Portal. Powered by CareHMS Core API.</div>
           <div style={{ display: 'flex', gap: '16px' }}>
             <a href="http://localhost:3000" style={{ color: '#0284c7', textDecoration: 'none' }}>Public Site (L1)</a>
             <a href="http://localhost:3002" style={{ color: '#0284c7', textDecoration: 'none' }}>Staff HMS (L4)</a>

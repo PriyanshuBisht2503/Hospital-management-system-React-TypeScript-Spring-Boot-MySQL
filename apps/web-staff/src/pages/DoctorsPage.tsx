@@ -21,6 +21,7 @@ import {
   Pagination,
   ConfirmDialog,
   useToast,
+  DEFAULT_PAGE_SIZE,
 } from '@hms/ui';
 import { Search, Plus, Edit2, Ban, Upload, Stethoscope, Building2 } from 'lucide-react';
 
@@ -107,9 +108,9 @@ export const DoctorsPage: React.FC = () => {
 
   // Fetch doctors
   const { data, isLoading, isError, error, refetch } = useQuery<PageResponse<DoctorAdmin>>({
-    queryKey: ['admin-doctors', page, search, branchFilter, specialtyFilter],
+    queryKey: ['admin-doctors', page, search, branchFilter, specialtyFilter, DEFAULT_PAGE_SIZE],
     queryFn: () => {
-      let url = `/api/admin/doctors?page=${page}&size=10&search=${encodeURIComponent(search)}`;
+      let url = `/api/admin/doctors?page=${page}&size=${DEFAULT_PAGE_SIZE}&search=${encodeURIComponent(search)}`;
       if (branchFilter) url += `&branchId=${branchFilter}`;
       if (specialtyFilter) url += `&specialtyId=${specialtyFilter}`;
       return apiRequest<PageResponse<DoctorAdmin>>(url);
@@ -224,6 +225,9 @@ export const DoctorsPage: React.FC = () => {
       }),
     onSuccess: () => {
       toast.success('Doctor profile deactivated and linked user disabled');
+      if (data && data.content.length === 1 && page > 0) {
+        setPage((p) => Math.max(0, p - 1));
+      }
       queryClient.invalidateQueries({ queryKey: ['admin-doctors'] });
       setDeactivatingDoctor(null);
     },
@@ -593,9 +597,12 @@ export const DoctorsPage: React.FC = () => {
             </Table>
 
             <Pagination
-              page={data.page}
+              pageNumber={data.pageNumber}
+              pageSize={data.pageSize}
               totalPages={data.totalPages}
               totalElements={data.totalElements}
+              isFirst={data.isFirst}
+              isLast={data.isLast}
               onPageChange={(newPage) => setPage(newPage)}
             />
           </>
@@ -961,3 +968,4 @@ export const DoctorsPage: React.FC = () => {
     </div>
   );
 };
+
