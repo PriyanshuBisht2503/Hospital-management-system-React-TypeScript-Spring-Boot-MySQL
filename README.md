@@ -140,6 +140,8 @@ All endpoints return uniform JSON responses. Protected endpoints require a Beare
 | `GET` | `/api/admin/doctors` | `ADMIN` | Paginated list of all doctors (active & inactive) with full user details |
 | `GET` | `/api/admin/doctors/{id}` | `ADMIN` | Full doctor details by ID |
 | `POST` | `/api/admin/doctors` | `ADMIN` | Single transaction: creates DOCTOR user (min 8 char password) and profile (@Audited) |
+| `POST` | `/api/admin/doctors/photo` | `ADMIN` | Upload doctor profile photo for creation with `is_public=true` (@Audited) |
+| `POST` | `/api/admin/doctors/{id}/photo` | `ADMIN` | Upload/update doctor profile photo for existing doctor (@Audited) |
 | `PUT` | `/api/admin/doctors/{id}` | `ADMIN` | Update doctor profile details, specialties, and branches (@Audited) |
 | `DELETE`| `/api/admin/doctors/{id}` | `ADMIN` | Deactivate doctor profile, disable linked user, and revoke all refresh tokens (@Audited) |
 
@@ -163,3 +165,7 @@ All endpoints return uniform JSON responses. Protected endpoints require a Beare
 | `POST` | `/api/files/upload` | Authenticated | Upload file (max 5 MB; verifies magic bytes for JPEG, PNG, WebP, PDF; random UUID stored name) (@Audited) |
 | `GET` | `/api/files/{storedName}` | Public / Auth | Download file (public for doctor photos; requires owner or ADMIN for private files; traversal safe) |
 | `DELETE`| `/api/files/{storedName}` | Authenticated | Delete file (owner or ADMIN only) (@Audited) |
+
+> [!NOTE]
+> **Known Item - Orphaned Photo Files:**
+> When creating a new doctor, a profile photo may be pre-uploaded via `POST /api/admin/doctors/photo`. If the administrator abandons the creation form without submitting, the pre-uploaded photo remains stored on disk as an orphaned file. A background scheduled cleanup routine is planned for later phases to prune unreferenced temporary files.

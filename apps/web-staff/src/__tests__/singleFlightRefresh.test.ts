@@ -91,5 +91,93 @@ describe('Single-Flight Token Refresh', () => {
     // Total calls to /api/admin/users: 3 initial (all returned 401) + 3 retried (all succeeded) = 6
     expect(protectedCallCount).toBe(6);
   });
+
+  it('does NOT trigger /api/auth/refresh when /api/auth/login returns 401', async () => {
+    let refreshCallCount = 0;
+
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url === '/api/auth/refresh') {
+        refreshCallCount++;
+        return new Response('{}', { status: 200 });
+      }
+
+      if (url === '/api/auth/login') {
+        return new Response(
+          JSON.stringify({
+            status: 401,
+            error: 'Unauthorized',
+            message: 'Invalid email or password',
+            path: '/api/auth/login',
+            timestamp: new Date().toISOString(),
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response('Not Found', { status: 404 });
+    });
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(
+      apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'bad@aster.ae', password: 'wrong' }),
+      })
+    ).rejects.toThrow('Invalid email or password');
+
+    // Crucial: 401 from login endpoint must NEVER call /api/auth/refresh
+    expect(refreshCallCount).toBe(0);
+  });
+
+  it('retries a request at most once after a refresh and avoids infinite loops if retried request also returns 401', async () => {
+    let refreshCallCount = 0;
+    let endpointCallCount = 0;
+
+    const mockFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url === '/api/auth/refresh') {
+        refreshCallCount++;
+        return new Response(
+          JSON.stringify({
+            accessToken: 'refreshed-token-attempt',
+            tokenType: 'Bearer',
+            expiresInMs: 1800000,
+            user: { id: 1, role: 'ADMIN' },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (url === '/api/admin/users') {
+        endpointCallCount++;
+        // Continues returning 401 even after refresh (e.g. revoked permissions)
+        return new Response(
+          JSON.stringify({
+            status: 401,
+            error: 'Unauthorized',
+            message: 'Session revoked',
+            path: '/api/admin/users',
+            timestamp: new Date().toISOString(),
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response('Not Found', { status: 404 });
+    });
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(apiRequest('/api/admin/users')).rejects.toThrow('Session revoked');
+
+    // Assert: 1 initial call + 1 retry = 2 endpoint calls max (no infinite loop)
+    expect(endpointCallCount).toBe(2);
+    // Refresh was called exactly once
+    expect(refreshCallCount).toBe(1);
+  });
 });
 
