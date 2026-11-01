@@ -91,10 +91,13 @@ public class AuditedAspect {
             entityType = method.getDeclaringClass().getSimpleName().replace("Controller", "").replace("Service", "").toUpperCase();
         }
 
-        // 5. Build sanitized details string (guaranteeing no passwords, tokens, or OTP codes leak)
-        String details = buildSanitizedDetails(method, paramNames, args);
+        // 5. Details: only use explicit opt-in details string if provided (never serialize method arguments)
+        String details = null;
+        if (!audited.details().isBlank()) {
+            details = sanitizeDetails(audited.details());
+        }
 
-        // 6. Persist through AuditLogService
+        // 6. Persist through AuditLogService (by default logs action, entityType, entityId, userId, ip)
         auditLogService.log(userId, audited.action(), entityType, entityId, clientIp, details);
     }
 
@@ -117,62 +120,15 @@ public class AuditedAspect {
         return "N/A";
     }
 
-    private String buildSanitizedDetails(Method method, String[] paramNames, Object[] args) {
-        if (paramNames == null || args == null || paramNames.length == 0) {
-            return "Invoked " + method.getName();
-        }
-
-        StringBuilder sb = new StringBuilder("Method: ").append(method.getName()).append("(");
-        Parameter[] parameters = method.getParameters();
-
-        for (int i = 0; i < paramNames.length; i++) {
-            if (i > 0) sb.append(", ");
-            String paramName = paramNames[i];
-            Object arg = args[i];
-
-            if (isSensitiveParam(paramName, parameters[i].getType())) {
-                sb.append(paramName).append("=[PROTECTED]");
-            } else if (arg == null) {
-                sb.append(paramName).append("=null");
-            } else {
-                String strVal = arg.toString();
-                // Check if string content might contain sensitive keywords
-                if (containsSensitiveContent(strVal)) {
-                    sb.append(paramName).append("=[PROTECTED]");
-                } else {
-                    sb.append(paramName).append("=").append(truncate(strVal, 60));
-                }
-            }
-        }
-        sb.append(")");
-        return sb.toString();
-    }
-
-    private boolean isSensitiveParam(String name, Class<?> type) {
-        String lowerName = name.toLowerCase();
+    private String sanitizeDetails(String text) {
+        if (text == null) return null;
+        // Never log passwords, tokens, or OTP codes even if passed in details
+        String lower = text.toLowerCase();
         for (String keyword : SENSITIVE_KEYWORDS) {
-            if (lowerName.contains(keyword)) {
-                return true;
+            if (lower.contains(keyword)) {
+                return "[PROTECTED]";
             }
         }
-
-        String typeName = type.getSimpleName().toLowerCase();
-        for (String keyword : SENSITIVE_KEYWORDS) {
-            if (typeName.contains(keyword)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean containsSensitiveContent(String content) {
-        String lower = content.toLowerCase();
-        return lower.contains("password=") || lower.contains("rawcode=") || lower.contains("token=") || lower.contains("secret=");
-    }
-
-    private String truncate(String val, int max) {
-        if (val == null) return null;
-        return val.length() > max ? val.substring(0, max) + "..." : val;
+        return text;
     }
 }

@@ -14,25 +14,39 @@ import java.util.Optional;
 @Repository
 public interface DoctorRepository extends JpaRepository<Doctor, Long> {
 
+    @Override
+    @EntityGraph(attributePaths = {"user", "specialties", "branches"})
+    Optional<Doctor> findById(Long id);
+
     @EntityGraph(attributePaths = {"user", "specialties", "branches"})
     Optional<Doctor> findByIdAndIsActiveTrue(Long id);
 
     @EntityGraph(attributePaths = {"user", "specialties", "branches"})
     Optional<Doctor> findByUserId(Long userId);
 
+    boolean existsByBranches_IdAndIsActiveTrue(Long branchId);
+
+    boolean existsBySpecialties_IdAndIsActiveTrue(Long specialtyId);
+
+    @EntityGraph(attributePaths = {"user", "specialties", "branches"})
     @Query("SELECT DISTINCT d FROM Doctor d " +
            "JOIN d.user u " +
            "LEFT JOIN d.specialties s " +
            "LEFT JOIN d.branches b " +
-           "WHERE d.isActive = true AND " +
+           "WHERE (:isActive IS NULL OR d.isActive = :isActive) AND " +
            "(:specialtyId IS NULL OR s.id = :specialtyId) AND " +
            "(:branchId IS NULL OR b.id = :branchId) AND " +
            "(:search IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            " LOWER(d.languages) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<Doctor> searchActiveDoctors(
+    Page<Doctor> searchDoctors(
         @Param("specialtyId") Long specialtyId,
         @Param("branchId") Long branchId,
+        @Param("isActive") Boolean isActive,
         @Param("search") String search,
         Pageable pageable
     );
+
+    default Page<Doctor> searchActiveDoctors(Long specialtyId, Long branchId, String search, Pageable pageable) {
+        return searchDoctors(specialtyId, branchId, true, search, pageable);
+    }
 }

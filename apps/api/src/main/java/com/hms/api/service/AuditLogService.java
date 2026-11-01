@@ -49,6 +49,18 @@ public class AuditLogService {
         return clientIpResolver.resolveClientIp(request);
     }
 
+    public com.hms.api.dto.PageResponse<com.hms.api.dto.AuditLogDto> searchLogs(
+            Long userId,
+            String action,
+            String entityType,
+            java.time.LocalDateTime startDate,
+            java.time.LocalDateTime endDate,
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        org.springframework.data.domain.Page<AuditLog> page = auditLogRepository.searchAuditLogs(userId, action, entityType, startDate, endDate, pageable);
+        return com.hms.api.dto.PageResponse.from(page.map(com.hms.api.dto.AuditLogDto::from));
+    }
+
     private String truncate(String value, int maxLength) {
         if (value == null) return null;
         return value.length() > maxLength ? value.substring(0, maxLength) : value;

@@ -30,8 +30,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE " +
            "(:role IS NULL OR u.role = :role) AND " +
+           "(:enabled IS NULL OR u.enabled = :enabled) AND " +
            "(:search IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            " LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            " u.phone LIKE CONCAT('%', :search, '%'))")
-    Page<User> searchUsers(@Param("role") Role role, @Param("search") String search, Pageable pageable);
+    Page<User> searchUsers(
+        @Param("role") Role role,
+        @Param("enabled") Boolean enabled,
+        @Param("search") String search,
+        Pageable pageable
+    );
+
+    default Page<User> searchUsers(Role role, String search, Pageable pageable) {
+        return searchUsers(role, null, search, pageable);
+    }
 }

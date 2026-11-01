@@ -29,4 +29,9 @@ public @interface Audited {
      * Optional method parameter name to extract as the entity ID.
      */
     String entityIdParam() default "";
+
+    /**
+     * Explicit opt-in details string for this call site. Defaults to empty (null logged).
+     */
+    String details() default "";
 }

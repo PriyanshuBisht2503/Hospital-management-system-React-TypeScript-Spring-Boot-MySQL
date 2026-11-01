@@ -41,6 +41,11 @@ class AuditedAspectTest {
             return "Consulted patient " + patientId;
         }
 
+        @Audited(action = "OPT_IN_ACTION", entityType = "REPORT", details = "Monthly doctor activity summary")
+        public String optInDetailsAction() {
+            return "Generated Report";
+        }
+
         @Audited(action = "RISKY_ACTION")
         public String riskyAction() {
             return "Done";
@@ -53,8 +58,8 @@ class AuditedAspectTest {
     }
 
     @Test
-    @DisplayName("@Audited records audit entry and masks sensitive parameters (passwords, tokens, OTPs)")
-    void auditedAspectLogsAndMasksSensitiveData() {
+    @DisplayName("@Audited by default logs only action, entityType, entityId, userId, ip and does NOT serialize method arguments")
+    void auditedAspectLogsByDefaultWithoutSerializingArguments() {
         String result = testAuditService.consultPatient(101L, "Routine checkup", "TopSecretPass@123", "998877");
         assertThat(result).isEqualTo("Consulted patient 101");
 
@@ -64,13 +69,24 @@ class AuditedAspectTest {
         assertThat(log.getAction()).isEqualTo("PATIENT_CONSULT");
         assertThat(log.getEntityType()).isEqualTo("PATIENT");
         assertThat(log.getEntityId()).isEqualTo("101");
+        assertThat(log.getIp()).isEqualTo("127.0.0.1");
 
-        // Verify details NEVER contain the sensitive password or OTP code
-        assertThat(log.getDetails()).contains("sensitivePassword=[PROTECTED]");
-        assertThat(log.getDetails()).contains("otpCode=[PROTECTED]");
-        assertThat(log.getDetails()).doesNotContain("TopSecretPass@123");
-        assertThat(log.getDetails()).doesNotContain("998877");
-        assertThat(log.getDetails()).contains("Routine checkup");
+        // By default, method arguments are NOT serialized into details
+        assertThat(log.getDetails()).isNull();
+    }
+
+    @Test
+    @DisplayName("@Audited records explicit opt-in details string when specified at call site")
+    void auditedAspectRecordsOptInDetails() {
+        String result = testAuditService.optInDetailsAction();
+        assertThat(result).isEqualTo("Generated Report");
+
+        List<AuditLog> logs = auditLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        AuditLog log = logs.get(0);
+        assertThat(log.getAction()).isEqualTo("OPT_IN_ACTION");
+        assertThat(log.getEntityType()).isEqualTo("REPORT");
+        assertThat(log.getDetails()).isEqualTo("Monthly doctor activity summary");
     }
 
     @Test

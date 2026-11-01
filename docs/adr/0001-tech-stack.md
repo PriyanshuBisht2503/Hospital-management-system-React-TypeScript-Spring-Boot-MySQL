@@ -1,4 +1,4 @@
-# ADR 0001: Tech Stack & System Architecture
+ # ADR 0001: Tech Stack & System Architecture
 
 ## Status
 Accepted

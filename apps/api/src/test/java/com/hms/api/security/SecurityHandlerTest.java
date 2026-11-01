@@ -63,8 +63,8 @@ class SecurityHandlerTest {
     }
 
     @Test
-    @DisplayName("401 Unauthorized returns consistent ErrorResponse JSON and records UNAUTHORIZED_ACCESS to audit log")
-    void unauthenticatedRequestReturnsConsistent401AndAudits() throws Exception {
+    @DisplayName("401 Unauthorized with NO token returns consistent ErrorResponse and does NOT write to audit log")
+    void unauthenticatedRequestWithoutTokenReturns401WithoutAudit() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
@@ -73,16 +73,30 @@ class SecurityHandlerTest {
                 .andExpect(jsonPath("$.path").value("/api/auth/me"))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
 
+        // Zero audit logs for requests with no token
         List<AuditLog> logs = auditLogRepository.findAll();
-        assertThat(logs).anyMatch(l ->
-            "UNAUTHORIZED_ACCESS".equals(l.getAction()) &&
-            "/api/auth/me".equals(l.getEntityId())
-        );
+        assertThat(logs).isEmpty();
     }
 
     @Test
-    @DisplayName("403 Forbidden returns consistent ErrorResponse JSON and records ACCESS_DENIED to audit log")
-    void forbiddenRequestReturnsConsistent403AndAudits() throws Exception {
+    @DisplayName("401 Unauthorized WITH invalid Authorization header returns consistent ErrorResponse and audits UNAUTHORIZED_ACCESS")
+    void unauthenticatedRequestWithInvalidTokenReturns401AndAudits() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer invalid.expired.token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Full authentication is required to access this resource"));
+
+        List<AuditLog> logs = auditLogRepository.findAll();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getAction()).isEqualTo("UNAUTHORIZED_ACCESS");
+        assertThat(logs.get(0).getEntityId()).isEqualTo("/api/auth/me");
+    }
+
+    @Test
+    @DisplayName("403 Forbidden returns consistent ErrorResponse JSON and creates exactly ONE audit row")
+    void forbiddenRequestReturnsConsistent403AndExactlyOneAuditRow() throws Exception {
         User doctorUser = new User("doc@aster.ae", "+971509998811", "pass", Role.DOCTOR, "Dr. Test");
         doctorUser = userRepository.save(doctorUser);
         String doctorToken = jwtTokenProvider.generateAccessToken(doctorUser);
@@ -98,9 +112,10 @@ class SecurityHandlerTest {
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
 
         List<AuditLog> logs = auditLogRepository.findAll();
-        assertThat(logs).anyMatch(l ->
-            "ACCESS_DENIED".equals(l.getAction()) &&
-            "/api/test-admin-endpoint".equals(l.getEntityId())
-        );
+        // Verifies exactly ONE audit row is created
+        assertThat(logs).hasSize(1);
+        assertThat(logs.get(0).getAction()).isEqualTo("ACCESS_DENIED");
+        assertThat(logs.get(0).getEntityId()).isEqualTo("/api/test-admin-endpoint");
+        assertThat(logs.get(0).getUserId()).isEqualTo(doctorUser.getId());
     }
 }

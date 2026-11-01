@@ -19,4 +19,14 @@ public interface SpecialtyRepository extends JpaRepository<Specialty, Long> {
     Page<Specialty> findByIsActiveTrue(Pageable pageable);
 
     List<Specialty> findByIsActiveTrue();
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Specialty s WHERE " +
+           "(:isActive IS NULL OR s.isActive = :isActive) AND " +
+           "(:search IS NULL OR LOWER(s.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(s.code) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Specialty> searchSpecialties(
+        @org.springframework.data.repository.query.Param("isActive") Boolean isActive,
+        @org.springframework.data.repository.query.Param("search") String search,
+        Pageable pageable
+    );
 }

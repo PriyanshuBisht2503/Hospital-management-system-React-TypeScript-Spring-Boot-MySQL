@@ -57,17 +57,20 @@ public class SecurityConfig {
             .cors(cors -> {})
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
-                // Consistent 401 Unauthorized + Audit Logging
+                // Consistent 401 Unauthorized + Audit Logging (only when Authorization header was present)
                 .authenticationEntryPoint((request, response, authException) -> {
-                    String clientIp = clientIpResolver.resolveClientIp(request);
-                    auditLogService.log(
-                        null,
-                        "UNAUTHORIZED_ACCESS",
-                        "ENDPOINT",
-                        request.getRequestURI(),
-                        clientIp,
-                        authException.getMessage()
-                    );
+                    String authHeader = request.getHeader("Authorization");
+                    if (authHeader != null && !authHeader.isBlank()) {
+                        String clientIp = clientIpResolver.resolveClientIp(request);
+                        auditLogService.log(
+                            null,
+                            "UNAUTHORIZED_ACCESS",
+                            "ENDPOINT",
+                            request.getRequestURI(),
+                            clientIp,
+                            authException.getMessage()
+                        );
+                    }
 
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -132,10 +135,27 @@ public class SecurityConfig {
                     "/api/doctors",
                     "/api/doctors/**",
                     "/api/branches",
+                    "/api/branches/**",
                     "/api/departments",
+                    "/api/departments/**",
                     "/api/specialties",
+                    "/api/specialties/**",
                     "/api/files/**"
                 ).permitAll()
+
+                // Master data writes require ADMIN role
+                .requestMatchers(HttpMethod.POST, "/api/branches/**", "/api/departments/**", "/api/specialties/**", "/api/rooms/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/branches/**", "/api/departments/**", "/api/specialties/**", "/api/rooms/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/branches/**", "/api/departments/**", "/api/specialties/**", "/api/rooms/**").hasRole("ADMIN")
+
+                // Rooms read requires authentication
+                .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/**").authenticated()
+
+                // Admin endpoints require ADMIN role
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                // Files upload requires authentication
+                .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
 
                 // All other endpoints require authentication
                 .anyRequest().authenticated()

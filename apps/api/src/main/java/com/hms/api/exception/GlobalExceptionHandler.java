@@ -76,10 +76,10 @@ public class GlobalExceptionHandler {
         }
 
         auditLogService.log(
+            userId,
             "ACCESS_DENIED",
             "ENDPOINT",
             request.getRequestURI(),
-            userId,
             clientIp,
             ex.getMessage()
         );
@@ -98,6 +98,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(HttpStatus.CONFLICT.value(), "Conflict", ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(RateLimitExceededException.class)

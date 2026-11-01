@@ -51,28 +51,37 @@ A modular, enterprise-grade Hospital Management System modelled on the Aster Hos
 
 ### Quick Start
 
-1. **Install dependencies:**
+1. **Database Setup (Non-root user):**
+   Docker Compose automatically initializes the limited `hms` user. If configuring a local MySQL instance manually:
+   ```sql
+   CREATE DATABASE IF NOT EXISTS hms_db;
+   CREATE USER IF NOT EXISTS 'hms'@'localhost' IDENTIFIED BY 'hms_password_123';
+   GRANT ALL PRIVILEGES ON hms_db.* TO 'hms'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. **Start Infrastructure:**
+3. **Start Infrastructure:**
    ```bash
    npm run infra:up
    ```
 
-3. **Run Typecheck & Build:**
+4. **Run Typecheck & Build:**
    ```bash
    npm run typecheck
    npm run build
    ```
 
-4. **Run API Tests:**
+5. **Run API Tests:**
    ```bash
    npm run test:api
    ```
 
-5. **Start Development Servers:**
+6. **Start Development Servers:**
    - Backend API (port 4000):
      ```bash
      npm run dev:api
@@ -81,3 +90,76 @@ A modular, enterprise-grade Hospital Management System modelled on the Aster Hos
      ```bash
      npm run dev:web
      ```
+
+## REST API Endpoints (Phase 1)
+
+All endpoints return uniform JSON responses. Protected endpoints require a Bearer token in the `Authorization` header.
+
+### Authentication (`/api/auth`)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/api/auth/login` | Public | Staff email/password login (rate limited, lockout after 5 failed attempts) |
+| `POST` | `/api/auth/refresh` | Public (Cookie) | Rotate refresh token and issue fresh access token |
+| `POST` | `/api/auth/logout` | Public (Cookie) | Revoke refresh token and clear auth cookie |
+| `GET` | `/api/auth/me` | Authenticated | Retrieve current user profile and role |
+| `POST` | `/api/auth/otp/send` | Public | Request email/phone OTP for patient login or password reset |
+| `POST` | `/api/auth/otp/verify` | Public | Verify OTP code and obtain authentication tokens |
+| `POST` | `/api/auth/register-patient`| Public | Self-registration for patients with single-use OTP verification |
+| `POST` | `/api/auth/password-reset/request` | Public | Request password reset email |
+| `POST` | `/api/auth/password-reset/confirm` | Public | Confirm password reset with single-use token |
+
+### Master Data (`/api/branches`, `/api/departments`, `/api/specialties`, `/api/rooms`)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/api/branches` | Public | Paginated list (unauthenticated callers see active branches only) |
+| `GET` | `/api/branches/{id}` | Public | Branch details by ID (active only for unauthenticated callers) |
+| `POST` | `/api/branches` | `ADMIN` | Create new hospital branch (@Audited) |
+| `PUT` | `/api/branches/{id}` | `ADMIN` | Update branch details (@Audited) |
+| `DELETE`| `/api/branches/{id}` | `ADMIN` | Soft delete branch (409 if referenced by active doctors or rooms) (@Audited) |
+| `GET` | `/api/departments` | Public | Paginated list (unauthenticated callers see active only) |
+| `GET` | `/api/departments/{id}` | Public | Department details by ID |
+| `POST` | `/api/departments` | `ADMIN` | Create new department (@Audited) |
+| `PUT` | `/api/departments/{id}` | `ADMIN` | Update department details (@Audited) |
+| `DELETE`| `/api/departments/{id}` | `ADMIN` | Soft delete department (409 if referenced by active rooms) (@Audited) |
+| `GET` | `/api/specialties` | Public | Paginated list (unauthenticated callers see active only) |
+| `GET` | `/api/specialties/{id}` | Public | Specialty details by ID |
+| `POST` | `/api/specialties` | `ADMIN` | Create medical specialty (@Audited) |
+| `PUT` | `/api/specialties/{id}` | `ADMIN` | Update medical specialty (@Audited) |
+| `DELETE`| `/api/specialties/{id}` | `ADMIN` | Soft delete specialty (409 if referenced by active doctors) (@Audited) |
+| `GET` | `/api/rooms` | Authenticated | Paginated room search by branch, department, and room type |
+| `GET` | `/api/rooms/{id}` | Authenticated | Room details by ID |
+| `POST` | `/api/rooms` | `ADMIN` | Create room (409 if duplicate room number in branch) (@Audited) |
+| `PUT` | `/api/rooms/{id}` | `ADMIN` | Update room (@Audited) |
+| `DELETE`| `/api/rooms/{id}` | `ADMIN` | Soft delete room (@Audited) |
+
+### Doctor Management (`/api/doctors`, `/api/admin/doctors`)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/api/doctors` | Public | Paginated list of active doctors. Returns public DTO with NO email, phone, or user ID |
+| `GET` | `/api/doctors/{id}` | Public | Active doctor profile (returns public DTO; 404 for inactive doctors) |
+| `GET` | `/api/admin/doctors` | `ADMIN` | Paginated list of all doctors (active & inactive) with full user details |
+| `GET` | `/api/admin/doctors/{id}` | `ADMIN` | Full doctor details by ID |
+| `POST` | `/api/admin/doctors` | `ADMIN` | Single transaction: creates DOCTOR user (min 8 char password) and profile (@Audited) |
+| `PUT` | `/api/admin/doctors/{id}` | `ADMIN` | Update doctor profile details, specialties, and branches (@Audited) |
+| `DELETE`| `/api/admin/doctors/{id}` | `ADMIN` | Deactivate doctor profile, disable linked user, and revoke all refresh tokens (@Audited) |
+
+### User & Staff Management (`/api/admin/users`)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/api/admin/users` | `ADMIN` | Paginated list with role and search filters (never returns password hashes) |
+| `GET` | `/api/admin/users/{id}` | `ADMIN` | User details by ID |
+| `POST` | `/api/admin/users` | `ADMIN` | Create staff (`ADMIN`, `DOCTOR`, `RECEPTIONIST` only; rejects `PATIENT` with 400) (@Audited) |
+| `PATCH` | `/api/admin/users/{id}/role` | `ADMIN` | Change role (prevents self-demotion or demoting last active ADMIN; revokes refresh tokens) (@Audited) |
+| `PATCH` | `/api/admin/users/{id}/status` | `ADMIN` | Enable/disable user (prevents disabling self or last active ADMIN; revokes refresh tokens) (@Audited) |
+
+### Audit Log Viewer (`/api/admin/audit-logs`)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `GET` | `/api/admin/audit-logs` | `ADMIN` | Paginated audit logs with filters: userId, action, entityType, and date range |
+
+### File Storage (`/api/files`)
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/api/files/upload` | Authenticated | Upload file (max 5 MB; verifies magic bytes for JPEG, PNG, WebP, PDF; random UUID stored name) (@Audited) |
+| `GET` | `/api/files/{storedName}` | Public / Auth | Download file (public for doctor photos; requires owner or ADMIN for private files; traversal safe) |
+| `DELETE`| `/api/files/{storedName}` | Authenticated | Delete file (owner or ADMIN only) (@Audited) |
