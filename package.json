@@ -12,6 +12,7 @@
     "infra:down": "docker compose down",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "test:api": "node scripts/run-mvn.js test",
     "dev:api": "node scripts/run-mvn.js spring-boot:run -Dspring-boot.run.profiles=dev",
     "dev:web-public": "npm run dev --workspace=apps/web-public",
