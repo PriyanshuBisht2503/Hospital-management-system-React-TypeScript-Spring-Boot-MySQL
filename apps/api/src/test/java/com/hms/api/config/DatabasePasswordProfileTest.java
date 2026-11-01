@@ -18,11 +18,10 @@ class DatabasePasswordProfileTest {
         SpringApplicationBuilder builder = new SpringApplicationBuilder(ApiApplication.class)
                 .profiles("prod")
                 .properties(
-                    "server.port=0",
                     "spring.flyway.enabled=false"
                 );
 
-        assertThatThrownBy(builder::run)
+        assertThatThrownBy(() -> builder.run("--server.port=0"))
                 .isNotNull();
     }
 
@@ -34,13 +33,13 @@ class DatabasePasswordProfileTest {
             context = new SpringApplicationBuilder(ApiApplication.class)
                     .profiles("dev")
                     .properties(
-                        "server.port=0",
                         "spring.flyway.enabled=false",
-                        "spring.datasource.url=jdbc:h2:mem:dev_profile_test;MODE=MySQL;DB_CLOSE_DELAY=-1;USER=sa;PASSWORD=hms_password_123",
+                        "spring.jpa.hibernate.ddl-auto=create-drop",
+                        "spring.datasource.url=jdbc:h2:mem:dev_profile_test;MODE=MySQL;DB_CLOSE_DELAY=-1",
                         "spring.datasource.driver-class-name=org.h2.Driver",
                         "spring.datasource.username=sa"
                     )
-                    .run();
+                    .run("--server.port=0");
 
             Environment env = context.getEnvironment();
             assertThat(env.getProperty("spring.datasource.password")).isEqualTo("hms_password_123");

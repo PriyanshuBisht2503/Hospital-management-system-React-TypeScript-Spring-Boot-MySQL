@@ -11,6 +11,7 @@ import { SpecialtiesPage } from './pages/SpecialtiesPage';
 import { RoomsPage } from './pages/RoomsPage';
 import { UsersPage } from './pages/UsersPage';
 import { DoctorsPage } from './pages/DoctorsPage';
+import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -51,6 +52,7 @@ export default function App() {
                   <Route path="/specialties" element={<SpecialtiesPage />} />
                   <Route path="/rooms" element={<RoomsPage />} />
                   <Route path="/doctors" element={<DoctorsPage />} />
+                  <Route path="/audit-logs" element={<AuditLogsPage />} />
                 </Route>
               </Route>
 
