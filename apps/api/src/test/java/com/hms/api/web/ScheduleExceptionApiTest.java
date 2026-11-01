@@ -41,6 +41,9 @@ class ScheduleExceptionApiTest {
     private AppointmentRepository appointmentRepository;
 
     @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private ScheduleExceptionRepository exceptionRepository;
 
     @Autowired
@@ -72,6 +75,7 @@ class ScheduleExceptionApiTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         exceptionRepository.deleteAll();
         doctorRepository.deleteAll();
@@ -97,6 +101,7 @@ class ScheduleExceptionApiTest {
 
     @AfterEach
     void tearDown() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         exceptionRepository.deleteAll();
         doctorRepository.deleteAll();

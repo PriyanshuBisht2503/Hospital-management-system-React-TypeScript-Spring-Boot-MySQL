@@ -7,10 +7,7 @@ import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
 import com.hms.api.dto.OtpVerifyRequest;
 import com.hms.api.dto.RegisterPatientRequest;
-import com.hms.api.repository.AppointmentRepository;
-import com.hms.api.repository.OtpCodeRepository;
-import com.hms.api.repository.PatientRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +42,9 @@ class UnverifiedRegistrationLinkingTest {
     private AppointmentRepository appointmentRepository;
 
     @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private PatientRepository patientRepository;
 
     @Autowired
@@ -58,6 +58,7 @@ class UnverifiedRegistrationLinkingTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         patientRepository.deleteAll();
         otpCodeRepository.deleteAll();
@@ -66,6 +67,7 @@ class UnverifiedRegistrationLinkingTest {
 
     @AfterEach
     void tearDown() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         patientRepository.deleteAll();
         otpCodeRepository.deleteAll();

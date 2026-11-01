@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hms.api.domain.FileRecord;
 import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
-import com.hms.api.repository.FileRecordRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +36,15 @@ class FileStorageTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -73,8 +81,7 @@ class FileStorageTest {
 
     @BeforeEach
     void setUp() {
-        fileRecordRepository.deleteAll();
-        userRepository.deleteAll();
+        cleanAll();
 
         admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
         doctorUser = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
@@ -85,6 +92,19 @@ class FileStorageTest {
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doctorUser);
         receptionistToken = "Bearer " + jwtTokenProvider.generateAccessToken(receptionistUser);
         patientToken = "Bearer " + jwtTokenProvider.generateAccessToken(patientUser);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        fileRecordRepository.deleteAll();
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        patientRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test

@@ -151,7 +151,24 @@ public class SecurityConfig {
                 // Rooms read requires authentication
                 .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/**").authenticated()
 
-                // Doctor schedules and exceptions (Admin, Receptionist, Doctor)
+                // Patients endpoints: directory search is staff-only, viewing individual profile allows PATIENT (service enforces self-only)
+                .requestMatchers(HttpMethod.POST, "/api/patients", "/api/patients/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers(HttpMethod.GET, "/api/patients").hasAnyRole("ADMIN", "RECEPTIONIST", "DOCTOR")
+                .requestMatchers(HttpMethod.GET, "/api/patients/*").hasAnyRole("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT")
+
+                // Appointments create
+                .requestMatchers(HttpMethod.POST, "/api/appointments", "/api/appointments/**").hasAnyRole("ADMIN", "RECEPTIONIST", "PATIENT")
+
+                // Doctor schedules write (Admin only)
+                .requestMatchers(HttpMethod.POST, "/api/admin/doctors/*/schedules", "/api/admin/doctors/*/schedules/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/admin/doctors/*/schedules", "/api/admin/doctors/*/schedules/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/admin/doctors/*/schedules", "/api/admin/doctors/*/schedules/**").hasRole("ADMIN")
+
+                // Doctor exceptions write/delete (Admin, Doctor)
+                .requestMatchers(HttpMethod.POST, "/api/admin/doctors/*/exceptions", "/api/admin/doctors/*/exceptions/**").hasAnyRole("ADMIN", "DOCTOR")
+                .requestMatchers(HttpMethod.DELETE, "/api/admin/doctors/*/exceptions", "/api/admin/doctors/*/exceptions/**").hasAnyRole("ADMIN", "DOCTOR")
+
+                // Doctor schedules and exceptions read (Admin, Receptionist, Doctor)
                 .requestMatchers(
                     "/api/admin/doctors/*/schedules",
                     "/api/admin/doctors/*/schedules/**",

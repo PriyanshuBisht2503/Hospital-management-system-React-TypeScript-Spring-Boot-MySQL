@@ -109,11 +109,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("UPDATE Appointment a SET a.reminder2hSent = true WHERE a.id = :id AND a.reminder2hSent = false")
     int claimReminder2h(@Param("id") Long id);
 
+    @EntityGraph(attributePaths = {"patient", "patient.user", "doctor", "doctor.user", "branch"})
     @Query("SELECT a FROM Appointment a WHERE a.status IN ('BOOKED', 'CONFIRMED') " +
            "AND a.reminder24hSent = false " +
            "AND a.startTime >= :start AND a.startTime <= :end")
     List<Appointment> findDueFor24hReminder(@Param("start") Instant start, @Param("end") Instant end);
 
+    @EntityGraph(attributePaths = {"patient", "patient.user", "doctor", "doctor.user", "branch"})
     @Query("SELECT a FROM Appointment a WHERE a.status IN ('BOOKED', 'CONFIRMED') " +
            "AND a.reminder2hSent = false " +
            "AND a.startTime >= :start AND a.startTime <= :end")

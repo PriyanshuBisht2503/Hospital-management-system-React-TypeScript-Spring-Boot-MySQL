@@ -15,7 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("test") // Non-dev profile: proves seeder does NOT run
 @TestPropertySource(properties = {
-    "spring.datasource.url=jdbc:h2:mem:hms_nondev_test_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+    "spring.datasource.url=jdbc:h2:mem:hms_nondev_test_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+    "spring.datasource.driver-class-name=org.h2.Driver"
 })
 @DirtiesContext
 class DevDataSeederNonDevProfileTest {

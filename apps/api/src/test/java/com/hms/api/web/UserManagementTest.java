@@ -8,9 +8,7 @@ import com.hms.api.domain.User;
 import com.hms.api.dto.ChangeRoleRequest;
 import com.hms.api.dto.CreateStaffRequest;
 import com.hms.api.dto.UpdateUserStatusRequest;
-import com.hms.api.repository.DoctorRepository;
-import com.hms.api.repository.RefreshTokenRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +42,15 @@ class UserManagementTest {
     private UserRepository userRepository;
 
     @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private DoctorRepository doctorRepository;
 
     @Autowired
@@ -64,9 +71,7 @@ class UserManagementTest {
 
     @BeforeEach
     void setUp() {
-        refreshTokenRepository.deleteAll();
-        doctorRepository.deleteAll();
-        userRepository.deleteAll();
+        cleanAll();
 
         admin1 = userRepository.save(new User("admin1@example.com", "+971501111111", "hash", Role.ADMIN, "Super Admin"));
         docUser = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
@@ -77,6 +82,20 @@ class UserManagementTest {
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(docUser);
         receptionistToken = "Bearer " + jwtTokenProvider.generateAccessToken(rec);
         patientToken = "Bearer " + jwtTokenProvider.generateAccessToken(pat);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        refreshTokenRepository.deleteAll();
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        doctorRepository.deleteAll();
+        patientRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test

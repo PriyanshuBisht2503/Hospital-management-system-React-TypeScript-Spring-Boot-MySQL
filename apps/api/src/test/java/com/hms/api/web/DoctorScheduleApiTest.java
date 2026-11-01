@@ -41,6 +41,9 @@ class DoctorScheduleApiTest {
     private AppointmentRepository appointmentRepository;
 
     @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private DoctorScheduleRepository scheduleRepository;
 
     @Autowired
@@ -76,6 +79,7 @@ class DoctorScheduleApiTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
         doctorRepository.deleteAll();
@@ -103,6 +107,7 @@ class DoctorScheduleApiTest {
 
     @AfterEach
     void tearDown() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
         doctorRepository.deleteAll();

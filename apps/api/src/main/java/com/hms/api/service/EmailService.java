@@ -70,4 +70,15 @@ public class EmailService {
             }
         }
     }
+
+    public void sendEmail(String to, String subject, String body) {
+        if (to != null && to.contains("@") && mailSender != null) {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(mailFrom);
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+        }
+    }
 }

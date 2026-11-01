@@ -4,6 +4,7 @@ import com.hms.api.domain.*;
 import com.hms.api.dto.AppointmentResponseDto;
 import com.hms.api.dto.CancelAppointmentRequest;
 import com.hms.api.dto.PageResponse;
+import com.hms.api.event.AppointmentCancelledEvent;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ConflictException;
 import com.hms.api.exception.ResourceNotFoundException;
@@ -12,6 +13,7 @@ import com.hms.api.repository.DoctorRepository;
 import com.hms.api.repository.PatientRepository;
 import com.hms.api.security.SecurityUser;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -35,6 +37,7 @@ public class AppointmentLifecycleService {
     private final PatientRepository patientRepository;
     private final AppointmentStateMachine stateMachine;
     private final AuditLogService auditLogService;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final ZoneId hospitalZone;
 
@@ -44,6 +47,7 @@ public class AppointmentLifecycleService {
             PatientRepository patientRepository,
             AppointmentStateMachine stateMachine,
             AuditLogService auditLogService,
+            ApplicationEventPublisher eventPublisher,
             Clock clock,
             @Value("${app.timezone:Asia/Kolkata}") String timezone) {
         this.appointmentRepository = appointmentRepository;
@@ -51,6 +55,7 @@ public class AppointmentLifecycleService {
         this.patientRepository = patientRepository;
         this.stateMachine = stateMachine;
         this.auditLogService = auditLogService;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.hospitalZone = ZoneId.of(timezone);
     }
@@ -215,6 +220,7 @@ public class AppointmentLifecycleService {
         a.setCancelReason(request.reason().trim());
         a.setCancelledBy(currentUser.getUsername());
         Appointment saved = appointmentRepository.saveAndFlush(a);
+        eventPublisher.publishEvent(new AppointmentCancelledEvent(saved.getId()));
 
         auditLogService.log(currentUser.getId(), "CANCEL_APPOINTMENT", "APPOINTMENT", String.valueOf(id), clientIp, "Reason: " + request.reason().trim());
         boolean maskPatientContact = currentUser.getRole() == Role.DOCTOR;

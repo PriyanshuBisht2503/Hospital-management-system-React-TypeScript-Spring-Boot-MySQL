@@ -3,11 +3,7 @@ package com.hms.api.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hms.api.domain.*;
 import com.hms.api.dto.*;
-import com.hms.api.repository.AuditLogRepository;
-import com.hms.api.repository.OtpCodeRepository;
-import com.hms.api.repository.PasswordResetTokenRepository;
-import com.hms.api.repository.RefreshTokenRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import com.hms.api.security.RateLimiterService;
 import jakarta.servlet.http.Cookie;
@@ -45,6 +41,15 @@ class Step3BAuthTest {
     private UserRepository userRepository;
 
     @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
@@ -70,7 +75,19 @@ class Step3BAuthTest {
 
     @BeforeEach
     void setUp() {
+        cleanAll();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
         rateLimiterService.clear();
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        patientRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         otpCodeRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();

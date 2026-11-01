@@ -3,8 +3,7 @@ package com.hms.api.web;
 import com.hms.api.domain.AuditLog;
 import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
-import com.hms.api.repository.AuditLogRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +35,15 @@ class AuditLogViewerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     private String adminToken;
@@ -45,8 +53,7 @@ class AuditLogViewerTest {
 
     @BeforeEach
     void setUp() {
-        auditLogRepository.deleteAll();
-        userRepository.deleteAll();
+        cleanAll();
 
         User admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
         User doc = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
@@ -57,6 +64,19 @@ class AuditLogViewerTest {
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doc);
         receptionistToken = "Bearer " + jwtTokenProvider.generateAccessToken(rec);
         patientToken = "Bearer " + jwtTokenProvider.generateAccessToken(pat);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        patientRepository.deleteAll();
+        auditLogRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test

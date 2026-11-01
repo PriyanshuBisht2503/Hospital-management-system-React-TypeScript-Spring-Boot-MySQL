@@ -40,6 +40,12 @@ class DoctorSearchAndSlotApiTest {
     private AppointmentRepository appointmentRepository;
 
     @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
     private DoctorScheduleRepository scheduleRepository;
 
     @Autowired
@@ -64,10 +70,12 @@ class DoctorSearchAndSlotApiTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
         exceptionRepository.deleteAll();
         doctorRepository.deleteAll();
+        patientRepository.deleteAll();
         branchRepository.deleteAll();
         specialtyRepository.deleteAll();
         userRepository.deleteAll();
@@ -99,10 +107,12 @@ class DoctorSearchAndSlotApiTest {
 
     @AfterEach
     void tearDown() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
         exceptionRepository.deleteAll();
         doctorRepository.deleteAll();
+        patientRepository.deleteAll();
         branchRepository.deleteAll();
         specialtyRepository.deleteAll();
         userRepository.deleteAll();

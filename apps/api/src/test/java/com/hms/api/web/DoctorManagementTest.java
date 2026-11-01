@@ -5,11 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hms.api.domain.*;
 import com.hms.api.dto.DoctorCreateRequest;
 import com.hms.api.dto.DoctorUpdateRequest;
-import com.hms.api.repository.BranchRepository;
-import com.hms.api.repository.DoctorRepository;
-import com.hms.api.repository.RefreshTokenRepository;
-import com.hms.api.repository.SpecialtyRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +40,21 @@ class DoctorManagementTest {
     private DoctorRepository doctorRepository;
 
     @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private DoctorScheduleRepository doctorScheduleRepository;
+
+    @Autowired
+    private ScheduleExceptionRepository scheduleExceptionRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -71,11 +82,7 @@ class DoctorManagementTest {
 
     @BeforeEach
     void setUp() {
-        refreshTokenRepository.deleteAll();
-        doctorRepository.deleteAll();
-        userRepository.deleteAll();
-        branchRepository.deleteAll();
-        specialtyRepository.deleteAll();
+        cleanAll();
 
         branch = branchRepository.save(new Branch("Mankhool Hospital", "MANK-01", "Al Mankhool", "Dubai", "043940000", "mankhool@example.com"));
         specialty = specialtyRepository.save(new Specialty("Cardiology", "CARD-01", "Heart specialty"));
@@ -89,6 +96,24 @@ class DoctorManagementTest {
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doc);
         receptionistToken = "Bearer " + jwtTokenProvider.generateAccessToken(rec);
         patientToken = "Bearer " + jwtTokenProvider.generateAccessToken(pat);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        refreshTokenRepository.deleteAll();
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        scheduleExceptionRepository.deleteAll();
+        doctorScheduleRepository.deleteAll();
+        doctorRepository.deleteAll();
+        patientRepository.deleteAll();
+        userRepository.deleteAll();
+        branchRepository.deleteAll();
+        specialtyRepository.deleteAll();
     }
 
     @Test

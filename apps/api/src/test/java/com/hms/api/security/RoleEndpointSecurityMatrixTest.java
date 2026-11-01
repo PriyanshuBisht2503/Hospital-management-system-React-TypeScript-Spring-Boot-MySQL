@@ -162,6 +162,40 @@ class RoleEndpointSecurityMatrixTest {
         addEndpoint(rows, HttpMethod.POST, "/api/files/upload",
                 401, 400, 400, 400, 400, null, true);
 
+        // --- Phase 2 Endpoints ---
+
+        // Public Doctor Search & Slots
+        addEndpoint(rows, HttpMethod.GET, "/api/doctors/search",
+                200, 200, 200, 200, 200, null, false);
+
+        // Patients (Staff only search/create)
+        addEndpoint(rows, HttpMethod.GET, "/api/patients",
+                401, 403, 200, 200, 200, null, false);
+
+        addEndpoint(rows, HttpMethod.POST, "/api/patients",
+                401, 403, 400, 403, 400, "{}", false);
+
+        // Appointments (List & Book)
+        addEndpoint(rows, HttpMethod.GET, "/api/appointments",
+                401, 200, 200, 200, 200, null, false);
+
+        addEndpoint(rows, HttpMethod.POST, "/api/appointments",
+                401, 400, 400, 403, 400, "{}", false);
+
+        // Doctor Schedules
+        addEndpoint(rows, HttpMethod.GET, "/api/admin/doctors/1/schedules",
+                401, 403, 200, 403, 200, null, false);
+
+        addEndpoint(rows, HttpMethod.POST, "/api/admin/doctors/1/schedules",
+                401, 403, 403, 403, 400, "{}", false);
+
+        // Doctor Exceptions
+        addEndpoint(rows, HttpMethod.GET, "/api/admin/doctors/1/exceptions",
+                401, 403, 200, 403, 200, null, false);
+
+        addEndpoint(rows, HttpMethod.POST, "/api/admin/doctors/1/exceptions",
+                401, 403, 403, 400, 400, "{}", false);
+
         return rows.stream();
     }
 

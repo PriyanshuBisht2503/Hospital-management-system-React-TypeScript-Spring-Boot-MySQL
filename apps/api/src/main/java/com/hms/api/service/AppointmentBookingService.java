@@ -2,6 +2,8 @@ package com.hms.api.service;
 
 import com.hms.api.domain.*;
 import com.hms.api.dto.AppointmentResponseDto;
+import com.hms.api.event.AppointmentBookedEvent;
+import com.hms.api.event.AppointmentRescheduledEvent;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ConflictException;
 import com.hms.api.exception.ResourceNotFoundException;
@@ -10,6 +12,7 @@ import com.hms.api.repository.BranchRepository;
 import com.hms.api.repository.DoctorRepository;
 import com.hms.api.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +30,7 @@ public class AppointmentBookingService {
     private final BranchRepository branchRepository;
     private final SlotCalculationService slotCalculationService;
     private final AppointmentStateMachine stateMachine;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final ZoneId hospitalZone;
 
@@ -37,6 +41,7 @@ public class AppointmentBookingService {
             BranchRepository branchRepository,
             SlotCalculationService slotCalculationService,
             AppointmentStateMachine stateMachine,
+            ApplicationEventPublisher eventPublisher,
             Clock clock,
             @Value("${app.timezone:Asia/Kolkata}") String timezone) {
         this.appointmentRepository = appointmentRepository;
@@ -45,6 +50,7 @@ public class AppointmentBookingService {
         this.branchRepository = branchRepository;
         this.slotCalculationService = slotCalculationService;
         this.stateMachine = stateMachine;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.hospitalZone = ZoneId.of(timezone);
     }
@@ -139,6 +145,7 @@ public class AppointmentBookingService {
 
         // 5. Persist with database unique key protection on active_booking_slot
         Appointment saved = appointmentRepository.saveAndFlush(appointment);
+        eventPublisher.publishEvent(new AppointmentBookedEvent(saved.getId()));
         return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
     }
 
@@ -225,6 +232,7 @@ public class AppointmentBookingService {
         newAppt.setConfirmedAt(clock.instant());
 
         Appointment saved = appointmentRepository.saveAndFlush(newAppt);
+        eventPublisher.publishEvent(new AppointmentRescheduledEvent(existing.getId(), saved.getId()));
         return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
     }
 }

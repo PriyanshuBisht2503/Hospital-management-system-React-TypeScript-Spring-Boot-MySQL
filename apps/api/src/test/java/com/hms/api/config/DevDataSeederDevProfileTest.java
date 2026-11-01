@@ -23,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles({"test", "dev"}) // Dev profile active
 @TestPropertySource(properties = {
-    "spring.datasource.url=jdbc:h2:mem:hms_dev_test_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
+    "spring.datasource.url=jdbc:h2:mem:hms_dev_test_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+    "spring.datasource.driver-class-name=org.h2.Driver"
 })
 @DirtiesContext
 class DevDataSeederDevProfileTest {

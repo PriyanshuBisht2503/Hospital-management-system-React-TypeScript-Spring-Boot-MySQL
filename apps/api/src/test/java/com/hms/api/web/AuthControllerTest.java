@@ -6,9 +6,7 @@ import com.hms.api.domain.RefreshToken;
 import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
 import com.hms.api.dto.LoginRequest;
-import com.hms.api.repository.AuditLogRepository;
-import com.hms.api.repository.RefreshTokenRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +43,15 @@ class AuthControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
@@ -66,10 +73,7 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        rateLimiterService.clear();
-        refreshTokenRepository.deleteAll();
-        auditLogRepository.deleteAll();
-        userRepository.deleteAll();
+        cleanAll();
 
         testDoctor = new User(
             "doctor.test@example.com",
@@ -79,6 +83,21 @@ class AuthControllerTest {
             "Dr. Test Doctor"
         );
         userRepository.save(testDoctor);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        rateLimiterService.clear();
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        patientRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
+        auditLogRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test

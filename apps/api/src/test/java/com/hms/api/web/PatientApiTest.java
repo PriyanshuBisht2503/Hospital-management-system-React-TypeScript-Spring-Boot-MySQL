@@ -3,12 +3,7 @@ package com.hms.api.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hms.api.domain.*;
 import com.hms.api.dto.CreatePatientRequest;
-import com.hms.api.repository.AppointmentRepository;
-import com.hms.api.repository.AuditLogRepository;
-import com.hms.api.repository.DoctorRepository;
-import com.hms.api.repository.DoctorScheduleRepository;
-import com.hms.api.repository.PatientRepository;
-import com.hms.api.repository.UserRepository;
+import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +42,9 @@ class PatientApiTest {
     private AppointmentRepository appointmentRepository;
 
     @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private DoctorScheduleRepository scheduleRepository;
 
     @Autowired
@@ -79,10 +77,11 @@ class PatientApiTest {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
-        patientRepository.deleteAll();
         doctorRepository.deleteAll();
+        patientRepository.deleteAll();
         userRepository.deleteAll();
         auditLogRepository.deleteAll();
 
@@ -109,10 +108,11 @@ class PatientApiTest {
 
     @AfterEach
     void tearDown() {
+        notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
-        patientRepository.deleteAll();
         doctorRepository.deleteAll();
+        patientRepository.deleteAll();
         userRepository.deleteAll();
         auditLogRepository.deleteAll();
     }

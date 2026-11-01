@@ -47,6 +47,9 @@ class AppointmentBookingServiceTest {
     @Mock
     private SlotCalculationService slotCalculationService;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private AppointmentStateMachine stateMachine;
     private AppointmentBookingService bookingService;
     private Clock fixedClock;
@@ -67,6 +70,7 @@ class AppointmentBookingServiceTest {
                 branchRepository,
                 slotCalculationService,
                 stateMachine,
+                eventPublisher,
                 fixedClock,
                 "UTC"
         );

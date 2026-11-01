@@ -48,6 +48,21 @@ class MasterDataTest {
     private DoctorRepository doctorRepository;
 
     @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
+    private DoctorScheduleRepository doctorScheduleRepository;
+
+    @Autowired
+    private ScheduleExceptionRepository scheduleExceptionRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -63,12 +78,7 @@ class MasterDataTest {
 
     @BeforeEach
     void setUp() {
-        roomRepository.deleteAll();
-        doctorRepository.deleteAll();
-        branchRepository.deleteAll();
-        departmentRepository.deleteAll();
-        specialtyRepository.deleteAll();
-        userRepository.deleteAll();
+        cleanAll();
 
         User admin = userRepository.save(new User("admin@example.com", "+971501111111", "hash", Role.ADMIN, "Admin User"));
         User doc = userRepository.save(new User("doc@example.com", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
@@ -79,6 +89,25 @@ class MasterDataTest {
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doc);
         receptionistToken = "Bearer " + jwtTokenProvider.generateAccessToken(rec);
         patientToken = "Bearer " + jwtTokenProvider.generateAccessToken(pat);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        scheduleExceptionRepository.deleteAll();
+        doctorScheduleRepository.deleteAll();
+        roomRepository.deleteAll();
+        doctorRepository.deleteAll();
+        patientRepository.deleteAll();
+        branchRepository.deleteAll();
+        departmentRepository.deleteAll();
+        specialtyRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     // ==========================================

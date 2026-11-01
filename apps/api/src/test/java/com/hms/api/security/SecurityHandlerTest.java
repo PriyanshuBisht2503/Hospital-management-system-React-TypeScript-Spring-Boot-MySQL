@@ -42,6 +42,15 @@ class SecurityHandlerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private com.hms.api.repository.PatientRepository patientRepository;
+
+    @Autowired
+    private com.hms.api.repository.AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private com.hms.api.repository.NotificationRepository notificationRepository;
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @TestConfiguration
@@ -58,6 +67,18 @@ class SecurityHandlerTest {
 
     @BeforeEach
     void setUp() {
+        cleanAll();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanAll();
+    }
+
+    private void cleanAll() {
+        notificationRepository.deleteAll();
+        appointmentRepository.deleteAll();
+        patientRepository.deleteAll();
         auditLogRepository.deleteAll();
         userRepository.deleteAll();
     }
