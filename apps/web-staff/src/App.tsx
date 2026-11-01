@@ -10,6 +10,7 @@ import { DepartmentsPage } from './pages/DepartmentsPage';
 import { SpecialtiesPage } from './pages/SpecialtiesPage';
 import { RoomsPage } from './pages/RoomsPage';
 import { UsersPage } from './pages/UsersPage';
+import { DoctorsPage } from './pages/DoctorsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -49,6 +50,7 @@ export default function App() {
                   <Route path="/departments" element={<DepartmentsPage />} />
                   <Route path="/specialties" element={<SpecialtiesPage />} />
                   <Route path="/rooms" element={<RoomsPage />} />
+                  <Route path="/doctors" element={<DoctorsPage />} />
                 </Route>
               </Route>
 
