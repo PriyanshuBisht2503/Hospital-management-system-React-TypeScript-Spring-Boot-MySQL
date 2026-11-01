@@ -151,6 +151,14 @@ public class SecurityConfig {
                 // Rooms read requires authentication
                 .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/**").authenticated()
 
+                // Doctor schedules and exceptions (Admin, Receptionist, Doctor)
+                .requestMatchers(
+                    "/api/admin/doctors/*/schedules",
+                    "/api/admin/doctors/*/schedules/**",
+                    "/api/admin/doctors/*/exceptions",
+                    "/api/admin/doctors/*/exceptions/**"
+                ).hasAnyRole("ADMIN", "RECEPTIONIST", "DOCTOR")
+
                 // Admin endpoints require ADMIN role
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

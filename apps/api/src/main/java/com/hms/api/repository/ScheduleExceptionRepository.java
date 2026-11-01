@@ -8,9 +8,14 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ScheduleExceptionRepository extends JpaRepository<ScheduleException, Long> {
+
+    List<ScheduleException> findByDoctorIdOrderByDateDesc(Long doctorId);
+
+    Optional<ScheduleException> findByIdAndDoctorId(Long id, Long doctorId);
 
     List<ScheduleException> findByDoctorIdAndDate(Long doctorId, LocalDate date);
 
