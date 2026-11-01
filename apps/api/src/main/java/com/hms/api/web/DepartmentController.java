@@ -75,3 +75,4 @@ public class DepartmentController {
         return ResponseEntity.ok(new MessageResponse("Department deactivated successfully"));
     }
 }
+

@@ -76,3 +76,4 @@ public class BranchController {
         return ResponseEntity.ok(new MessageResponse("Branch deactivated successfully"));
     }
 }
+

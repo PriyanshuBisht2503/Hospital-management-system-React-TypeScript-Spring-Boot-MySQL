@@ -88,3 +88,4 @@ public class SpecialtyService {
         specialtyRepository.save(specialty);
     }
 }
+

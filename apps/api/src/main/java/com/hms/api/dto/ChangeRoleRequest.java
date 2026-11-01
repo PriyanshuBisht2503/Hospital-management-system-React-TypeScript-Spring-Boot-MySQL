@@ -7,3 +7,4 @@ public record ChangeRoleRequest(
     @NotNull(message = "Role is required")
     Role role
 ) {}
+

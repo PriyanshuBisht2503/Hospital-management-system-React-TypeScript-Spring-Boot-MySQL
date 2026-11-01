@@ -75,3 +75,4 @@ public class SpecialtyController {
         return ResponseEntity.ok(new MessageResponse("Specialty deactivated successfully"));
     }
 }
+

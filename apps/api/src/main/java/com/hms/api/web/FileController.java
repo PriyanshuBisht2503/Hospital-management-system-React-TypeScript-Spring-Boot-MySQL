@@ -41,7 +41,6 @@ public class FileController {
     @Audited(action = "UPLOAD_FILE", entityType = "FILE")
     public ResponseEntity<FileResponseDto> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "isPublic", defaultValue = "false") boolean isPublic,
             @AuthenticationPrincipal SecurityUser currentUser
     ) {
         User user = null;
@@ -49,7 +48,9 @@ public class FileController {
             user = userRepository.findById(currentUser.getId()).orElse(null);
         }
 
-        FileRecord record = storageService.store(file, isPublic, user);
+        // Standard uploads are strictly private (is_public=false).
+        // Only the dedicated ADMIN doctor-photo endpoint can publish files.
+        FileRecord record = storageService.store(file, false, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(FileResponseDto.from(record));
     }
 
@@ -98,3 +99,4 @@ public class FileController {
         return ResponseEntity.ok(new MessageResponse("File deleted successfully"));
     }
 }
+

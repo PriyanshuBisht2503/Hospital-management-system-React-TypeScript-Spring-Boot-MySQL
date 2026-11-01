@@ -76,3 +76,4 @@ public class RoomController {
         return ResponseEntity.ok(new MessageResponse("Room deactivated successfully"));
     }
 }
+

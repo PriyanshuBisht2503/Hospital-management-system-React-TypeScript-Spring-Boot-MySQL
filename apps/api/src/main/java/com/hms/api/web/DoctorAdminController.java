@@ -6,6 +6,10 @@ import com.hms.api.dto.DoctorUpdateRequest;
 import com.hms.api.dto.MessageResponse;
 import com.hms.api.dto.PageResponse;
 import com.hms.api.service.DoctorService;
+import com.hms.api.dto.FileResponseDto;
+import com.hms.api.security.SecurityUser;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -56,9 +60,29 @@ public class DoctorAdminController {
         return ResponseEntity.ok(doctorService.updateDoctor(id, req));
     }
 
+    @PostMapping("/photo")
+    public ResponseEntity<FileResponseDto> uploadDoctorPhotoForCreation(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal SecurityUser currentUser
+    ) {
+        FileResponseDto photo = doctorService.uploadPublicDoctorPhoto(file, currentUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(photo);
+    }
+
+    @PostMapping("/{id}/photo")
+    public ResponseEntity<FileResponseDto> uploadDoctorPhoto(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal SecurityUser currentUser
+    ) {
+        FileResponseDto photo = doctorService.uploadDoctorPhoto(id, file, currentUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(photo);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<MessageResponse> deactivateDoctor(@PathVariable Long id) {
         doctorService.deactivateDoctor(id);
         return ResponseEntity.ok(new MessageResponse("Doctor profile deactivated and linked user disabled"));
     }
 }
+

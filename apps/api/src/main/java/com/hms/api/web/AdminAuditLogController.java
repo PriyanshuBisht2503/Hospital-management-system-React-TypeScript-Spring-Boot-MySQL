@@ -36,3 +36,4 @@ public class AdminAuditLogController {
         return ResponseEntity.ok(auditLogService.searchLogs(userId, action, entityType, startDate, endDate, pageable));
     }
 }
+

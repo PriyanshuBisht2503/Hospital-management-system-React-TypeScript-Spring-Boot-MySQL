@@ -40,3 +40,4 @@ public record DoctorCreateRequest(
     Set<Long> specialtyIds,
     Set<Long> branchIds
 ) {}
+

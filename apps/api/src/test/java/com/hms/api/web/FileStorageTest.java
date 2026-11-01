@@ -46,10 +46,12 @@ class FileStorageTest {
 
     private User admin;
     private User doctorUser;
+    private User receptionistUser;
     private User patientUser;
 
     private String adminToken;
     private String doctorToken;
+    private String receptionistToken;
     private String patientToken;
 
     // Standard Magic Bytes for Valid Formats
@@ -76,10 +78,12 @@ class FileStorageTest {
 
         admin = userRepository.save(new User("admin@aster.ae", "+971501111111", "hash", Role.ADMIN, "Admin User"));
         doctorUser = userRepository.save(new User("doc@aster.ae", "+971502222222", "hash", Role.DOCTOR, "Dr. Alice"));
+        receptionistUser = userRepository.save(new User("rec@aster.ae", "+971503333334", "hash", Role.RECEPTIONIST, "Receptionist User"));
         patientUser = userRepository.save(new User("pat@aster.ae", "+971503333333", "hash", Role.PATIENT, "Patient User"));
 
         adminToken = "Bearer " + jwtTokenProvider.generateAccessToken(admin);
         doctorToken = "Bearer " + jwtTokenProvider.generateAccessToken(doctorUser);
+        receptionistToken = "Bearer " + jwtTokenProvider.generateAccessToken(receptionistUser);
         patientToken = "Bearer " + jwtTokenProvider.generateAccessToken(patientUser);
     }
 
@@ -112,12 +116,13 @@ class FileStorageTest {
     }
 
     @Test
-    @DisplayName("Valid file upload: JPEG, PNG, WebP, PDF accepted; random stored name generated; no path traversal")
-    void validFileUploadStoresSafelyWithRandomName() throws Exception {
+    @DisplayName("Standard file upload is strictly private: client cannot set isPublic=true via request flag")
+    void standardUploadIsAlwaysPrivateAndIgnoresClientFlag() throws Exception {
         MockMultipartFile jpegFile = new MockMultipartFile(
             "file", "../../sensitive_profile.jpg", "image/jpeg", VALID_JPEG_BYTES
         );
 
+        // Attempting to send isPublic=true must be ignored; always private
         MvcResult result = mockMvc.perform(multipart("/api/files/upload")
                 .file(jpegFile)
                 .param("isPublic", "true")
@@ -125,7 +130,7 @@ class FileStorageTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.originalName").value("sensitive_profile.jpg"))
                 .andExpect(jsonPath("$.contentType").value("image/jpeg"))
-                .andExpect(jsonPath("$.isPublic").value(true))
+                .andExpect(jsonPath("$.isPublic").value(false))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -137,26 +142,43 @@ class FileStorageTest {
         assertThat(storedName).endsWith(".jpg");
 
         FileRecord record = fileRecordRepository.findByStoredName(storedName).orElseThrow();
-        assertThat(record.isPublic()).isTrue();
+        assertThat(record.isPublic()).isFalse();
     }
 
     @Test
-    @DisplayName("Public file (is_public=true) can be downloaded unauthenticated")
-    void publicFileCanBeDownloadedUnauthenticated() throws Exception {
+    @DisplayName("Only ADMIN doctor-photo path can publish a file; DOCTOR, RECEPTIONIST, PATIENT are rejected with 403")
+    void onlyAdminCanPublishDoctorPhoto() throws Exception {
         MockMultipartFile photo = new MockMultipartFile(
             "file", "dr_photo.jpg", "image/jpeg", VALID_JPEG_BYTES
         );
 
-        MvcResult uploadResult = mockMvc.perform(multipart("/api/files/upload")
+        // 1. Unauthenticated -> 401
+        mockMvc.perform(multipart("/api/admin/doctors/photo")
+                .file(photo))
+                .andExpect(status().isUnauthorized());
+
+        // 2. DOCTOR, RECEPTIONIST, PATIENT -> 403 Forbidden
+        String[] forbiddenTokens = { doctorToken, receptionistToken, patientToken };
+        for (String token : forbiddenTokens) {
+            mockMvc.perform(multipart("/api/admin/doctors/photo")
+                    .file(photo)
+                    .header("Authorization", token))
+                    .andExpect(status().isForbidden());
+        }
+
+        // 3. ADMIN -> 201 Created and isPublic = true
+        MvcResult adminResult = mockMvc.perform(multipart("/api/admin/doctors/photo")
                 .file(photo)
-                .param("isPublic", "true")
-                .header("Authorization", doctorToken))
+                .header("Authorization", adminToken))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.isPublic").value(true))
                 .andReturn();
 
-        String storedName = objectMapper.readTree(uploadResult.getResponse().getContentAsString()).get("storedName").asText();
+        String storedName = objectMapper.readTree(adminResult.getResponse().getContentAsString()).get("storedName").asText();
+        FileRecord record = fileRecordRepository.findByStoredName(storedName).orElseThrow();
+        assertThat(record.isPublic()).isTrue();
 
-        // Download unauthenticated succeeds
+        // 4. Public doctor photo can be downloaded unauthenticated
         mockMvc.perform(get("/api/files/" + storedName))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("image/jpeg"))

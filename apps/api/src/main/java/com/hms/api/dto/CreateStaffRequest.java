@@ -24,3 +24,4 @@ public record CreateStaffRequest(
     @NotNull(message = "Role is required")
     Role role
 ) {}
+

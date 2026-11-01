@@ -16,3 +16,4 @@ public record DoctorPublicDto(
     Set<BranchDto> branches,
     boolean isActive
 ) {}
+

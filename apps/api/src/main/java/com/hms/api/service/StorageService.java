@@ -11,3 +11,4 @@ public interface StorageService {
     FileRecord getFileRecord(String storedName);
     void delete(String storedName);
 }
+

@@ -21,6 +21,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -122,6 +125,17 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Validation Failed", "One or more fields failed validation", request.getRequestURI(), errors));
+    }
+
+    @ExceptionHandler({
+        MissingServletRequestPartException.class,
+        MissingServletRequestParameterException.class,
+        MultipartException.class
+    })
+    public ResponseEntity<ErrorResponse> handleMultipartOrParamException(Exception ex, HttpServletRequest request) {
+        log.warn("Missing parameter or request part on path {}: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)

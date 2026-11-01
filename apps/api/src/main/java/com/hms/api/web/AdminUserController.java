@@ -69,3 +69,4 @@ public class AdminUserController {
         return ResponseEntity.ok(userService.updateUserStatus(id, req, currentAdminId));
     }
 }
+

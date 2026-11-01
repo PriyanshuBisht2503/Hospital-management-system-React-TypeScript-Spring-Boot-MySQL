@@ -27,6 +27,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hms.api.dto.FileResponseDto;
+import com.hms.api.domain.FileRecord;
+import com.hms.api.security.SecurityUser;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,6 +44,7 @@ public class DoctorService {
     private final BranchRepository branchRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final StorageService storageService;
 
     public DoctorService(
             DoctorRepository doctorRepository,
@@ -47,7 +52,8 @@ public class DoctorService {
             SpecialtyRepository specialtyRepository,
             BranchRepository branchRepository,
             RefreshTokenRepository refreshTokenRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            StorageService storageService
     ) {
         this.doctorRepository = doctorRepository;
         this.userRepository = userRepository;
@@ -55,6 +61,7 @@ public class DoctorService {
         this.branchRepository = branchRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.storageService = storageService;
     }
 
     public PageResponse<DoctorPublicDto> getPublicDoctors(Long specialtyId, Long branchId, String search, Pageable pageable) {
@@ -192,6 +199,29 @@ public class DoctorService {
             // 3. Revoke all refresh tokens
             refreshTokenRepository.revokeAllByUserId(user.getId());
         }
+    }
+
+    @Transactional
+    @Audited(action = "UPLOAD_DOCTOR_PHOTO", entityType = "DOCTOR", entityIdParam = "doctorId")
+    public FileResponseDto uploadDoctorPhoto(Long doctorId, MultipartFile file, SecurityUser currentUser) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + doctorId));
+
+        User adminUser = currentUser != null ? userRepository.findById(currentUser.getId()).orElse(null) : null;
+        FileRecord record = storageService.store(file, true, adminUser);
+
+        doctor.setPhotoUrl("/api/files/" + record.getStoredName());
+        doctorRepository.save(doctor);
+
+        return FileResponseDto.from(record);
+    }
+
+    @Transactional
+    @Audited(action = "UPLOAD_DOCTOR_PHOTO", entityType = "FILE")
+    public FileResponseDto uploadPublicDoctorPhoto(MultipartFile file, SecurityUser currentUser) {
+        User adminUser = currentUser != null ? userRepository.findById(currentUser.getId()).orElse(null) : null;
+        FileRecord record = storageService.store(file, true, adminUser);
+        return FileResponseDto.from(record);
     }
 
     private DoctorPublicDto toPublicDto(Doctor d) {

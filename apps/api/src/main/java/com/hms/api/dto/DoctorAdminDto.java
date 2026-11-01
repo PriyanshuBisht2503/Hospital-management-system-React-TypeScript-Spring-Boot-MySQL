@@ -19,3 +19,4 @@ public record DoctorAdminDto(
     Set<BranchDto> branches,
     boolean isActive
 ) {}
+

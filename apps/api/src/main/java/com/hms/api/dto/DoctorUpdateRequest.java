@@ -23,3 +23,4 @@ public record DoctorUpdateRequest(
     Set<Long> specialtyIds,
     Set<Long> branchIds
 ) {}
+

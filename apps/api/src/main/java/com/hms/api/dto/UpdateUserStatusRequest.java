@@ -6,3 +6,4 @@ public record UpdateUserStatusRequest(
     @NotNull(message = "Enabled status is required")
     Boolean enabled
 ) {}
+

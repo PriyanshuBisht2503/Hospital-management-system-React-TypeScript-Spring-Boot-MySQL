@@ -103,3 +103,4 @@ class AuditLogViewerTest {
                 .andExpect(jsonPath("$.content[0].action").value("LOGIN_FAILED"));
     }
 }
+

@@ -34,3 +34,4 @@ public class DoctorPublicController {
         return ResponseEntity.ok(doctorService.getPublicDoctorById(id));
     }
 }
+
