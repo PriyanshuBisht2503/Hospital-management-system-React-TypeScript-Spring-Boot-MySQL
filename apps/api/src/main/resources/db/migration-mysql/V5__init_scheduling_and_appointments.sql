@@ -122,3 +122,4 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX idx_notifications_status_created ON notifications(status, created_at);
+

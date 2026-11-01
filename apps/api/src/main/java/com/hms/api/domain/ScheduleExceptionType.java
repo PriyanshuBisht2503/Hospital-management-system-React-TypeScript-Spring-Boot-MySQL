@@ -5,3 +5,4 @@ public enum ScheduleExceptionType {
     HOLIDAY,
     EXTRA_HOURS
 }
+

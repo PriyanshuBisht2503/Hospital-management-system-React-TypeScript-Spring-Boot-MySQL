@@ -20,3 +20,4 @@ public interface ScheduleExceptionRepository extends JpaRepository<ScheduleExcep
            "AND e.date = :date AND e.type IN ('LEAVE', 'HOLIDAY')")
     List<ScheduleException> findLeavesOnDate(@Param("doctorId") Long doctorId, @Param("date") LocalDate date);
 }
+

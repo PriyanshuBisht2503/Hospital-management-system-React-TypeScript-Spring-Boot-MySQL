@@ -215,3 +215,4 @@ public class DoctorSchedule {
         this.updatedAt = updatedAt;
     }
 }
+

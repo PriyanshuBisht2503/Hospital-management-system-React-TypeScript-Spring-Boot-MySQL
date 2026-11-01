@@ -93,3 +93,4 @@ class PatientRepositoryTest {
         assertThat(patientRepository.findByUserId(savedUser.getId())).isPresent();
     }
 }
+

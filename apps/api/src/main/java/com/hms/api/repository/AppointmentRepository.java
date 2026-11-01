@@ -4,6 +4,7 @@ import com.hms.api.domain.Appointment;
 import com.hms.api.domain.AppointmentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,9 +13,14 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
+
+    @Override
+    @EntityGraph(attributePaths = {"patient", "doctor", "doctor.user", "branch"})
+    Optional<Appointment> findById(Long id);
 
     @Query("SELECT a FROM Appointment a WHERE a.doctor.id = :doctorId " +
            "AND a.status NOT IN ('CANCELLED', 'RESCHEDULED') " +
@@ -67,6 +73,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
            "AND a.startTime >= :from")
     List<Appointment> findFutureActiveByBranch(@Param("branchId") Long branchId, @Param("from") Instant from);
 
+    @EntityGraph(attributePaths = {"patient", "doctor", "doctor.user", "branch"})
     @Query("SELECT a FROM Appointment a WHERE " +
            "(:doctorId IS NULL OR a.doctor.id = :doctorId) AND " +
            "(:branchId IS NULL OR a.branch.id = :branchId) AND " +
@@ -84,6 +91,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"patient", "doctor", "doctor.user", "branch"})
     @Query("SELECT a FROM Appointment a WHERE a.patient.id = :patientId " +
            "AND (:status IS NULL OR a.status = :status) " +
            "ORDER BY a.startTime DESC")

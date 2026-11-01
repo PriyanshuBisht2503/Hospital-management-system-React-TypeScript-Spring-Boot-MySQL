@@ -36,3 +36,4 @@ public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, 
             @Param("excludeId") Long excludeId
     );
 }
+

@@ -1,6 +1,7 @@
 package com.hms.api.service;
 
 import com.hms.api.domain.OtpCode;
+import com.hms.api.domain.Patient;
 import com.hms.api.domain.PasswordResetToken;
 import com.hms.api.domain.RefreshToken;
 import com.hms.api.domain.Role;
@@ -9,6 +10,7 @@ import com.hms.api.dto.*;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.InvalidTokenException;
 import com.hms.api.repository.OtpCodeRepository;
+import com.hms.api.repository.PatientRepository;
 import com.hms.api.repository.PasswordResetTokenRepository;
 import com.hms.api.repository.RefreshTokenRepository;
 import com.hms.api.repository.UserRepository;
@@ -48,6 +50,7 @@ public class AuthService {
     private static final int PASSWORD_RESET_EXPIRY_MINUTES = 15;
 
     private final UserRepository userRepository;
+    private final PatientRepository patientRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
@@ -64,6 +67,7 @@ public class AuthService {
 
     public AuthService(
         UserRepository userRepository,
+        PatientRepository patientRepository,
         RefreshTokenRepository refreshTokenRepository,
         OtpCodeRepository otpCodeRepository,
         PasswordResetTokenRepository passwordResetTokenRepository,
@@ -75,6 +79,7 @@ public class AuthService {
         EmailService emailService
     ) {
         this.userRepository = userRepository;
+        this.patientRepository = patientRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.otpCodeRepository = otpCodeRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -273,6 +278,24 @@ public class AuthService {
             user = new User(email, phone, null, Role.PATIENT, "Patient");
             userRepository.save(user);
             auditLogService.log(user.getId(), "USER_REGISTERED_OTP", "USER", String.valueOf(user.getId()), clientIp, "Auto-provisioned patient via verified OTP");
+        }
+
+        // Rule 10: Link a Patient to a User ONLY after OTP verification of that exact email or phone.
+        if (user.getRole() == Role.PATIENT && patientRepository.findByUserId(user.getId()).isEmpty()) {
+            Optional<Patient> existingPatient = isEmail 
+                    ? patientRepository.findByEmail(target) 
+                    : patientRepository.findByPhone(target);
+            if (existingPatient.isPresent() && existingPatient.get().getUser() == null) {
+                Patient patient = existingPatient.get();
+                patient.setUser(user);
+                patientRepository.save(patient);
+                auditLogService.log(user.getId(), "PATIENT_LINKED_OTP", "PATIENT", String.valueOf(patient.getId()), clientIp, "Linked existing patient record to verified user via OTP");
+            } else {
+                Patient newPatient = new Patient(user.getFullName(), user.getPhone(), user.getEmail(), null, null);
+                newPatient.setUser(user);
+                patientRepository.save(newPatient);
+                auditLogService.log(user.getId(), "PATIENT_CREATED_OTP", "PATIENT", String.valueOf(newPatient.getId()), clientIp, "Created new patient record for verified user via OTP");
+            }
         }
 
         // Generate tokens

@@ -115,3 +115,4 @@ class AppointmentStateMachineTest {
                 .hasMessageContaining("Cannot change status of appointment in terminal state");
     }
 }
+

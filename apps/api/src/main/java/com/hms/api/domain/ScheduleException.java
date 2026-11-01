@@ -140,3 +140,4 @@ public class ScheduleException {
         this.updatedAt = updatedAt;
     }
 }
+

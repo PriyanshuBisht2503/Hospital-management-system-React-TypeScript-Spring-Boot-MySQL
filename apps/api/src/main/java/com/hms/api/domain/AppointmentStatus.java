@@ -10,3 +10,4 @@ public enum AppointmentStatus {
     NO_SHOW,
     RESCHEDULED
 }
+

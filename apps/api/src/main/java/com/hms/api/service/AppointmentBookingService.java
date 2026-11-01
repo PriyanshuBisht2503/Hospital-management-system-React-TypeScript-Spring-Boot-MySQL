@@ -1,6 +1,7 @@
 package com.hms.api.service;
 
 import com.hms.api.domain.*;
+import com.hms.api.dto.AppointmentResponseDto;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ConflictException;
 import com.hms.api.exception.ResourceNotFoundException;
@@ -49,7 +50,7 @@ public class AppointmentBookingService {
     }
 
     @Transactional
-    public Appointment bookAppointment(
+    public AppointmentResponseDto bookAppointment(
             Long patientId,
             Long doctorId,
             Long branchId,
@@ -59,6 +60,22 @@ public class AppointmentBookingService {
             String reasonForVisit,
             String createdByRole,
             String createdByUser
+    ) {
+        return bookAppointment(patientId, doctorId, branchId, startTime, endTime, type, reasonForVisit, createdByRole, createdByUser, false);
+    }
+
+    @Transactional
+    public AppointmentResponseDto bookAppointment(
+            Long patientId,
+            Long doctorId,
+            Long branchId,
+            Instant startTime,
+            Instant endTime,
+            AppointmentType type,
+            String reasonForVisit,
+            String createdByRole,
+            String createdByUser,
+            boolean maskPatientContact
     ) {
         // 1. Pessimistic lock on the doctor row to serialize concurrent booking attempts
         Doctor doctor = doctorRepository.findByIdForUpdate(doctorId)
@@ -121,11 +138,12 @@ public class AppointmentBookingService {
         appointment.setConfirmedAt(confirmedAt);
 
         // 5. Persist with database unique key protection on active_booking_slot
-        return appointmentRepository.saveAndFlush(appointment);
+        Appointment saved = appointmentRepository.saveAndFlush(appointment);
+        return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
     }
 
     @Transactional
-    public Appointment rescheduleAppointment(
+    public AppointmentResponseDto rescheduleAppointment(
             Long appointmentId,
             Instant newStartTime,
             Instant newEndTime,
@@ -133,6 +151,20 @@ public class AppointmentBookingService {
             String rescheduleReason,
             String requestedByRole,
             String requestedByUser
+    ) {
+        return rescheduleAppointment(appointmentId, newStartTime, newEndTime, newBranchId, rescheduleReason, requestedByRole, requestedByUser, false);
+    }
+
+    @Transactional
+    public AppointmentResponseDto rescheduleAppointment(
+            Long appointmentId,
+            Instant newStartTime,
+            Instant newEndTime,
+            Long newBranchId,
+            String rescheduleReason,
+            String requestedByRole,
+            String requestedByUser,
+            boolean maskPatientContact
     ) {
         Appointment existing = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found: " + appointmentId));
@@ -192,6 +224,7 @@ public class AppointmentBookingService {
         newAppt.setCreatedBy(requestedByUser);
         newAppt.setConfirmedAt(clock.instant());
 
-        return appointmentRepository.saveAndFlush(newAppt);
+        Appointment saved = appointmentRepository.saveAndFlush(newAppt);
+        return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
     }
 }

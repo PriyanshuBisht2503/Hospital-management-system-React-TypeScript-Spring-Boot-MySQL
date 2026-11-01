@@ -1,6 +1,7 @@
 package com.hms.api.service;
 
 import com.hms.api.domain.*;
+import com.hms.api.dto.AppointmentResponseDto;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ConflictException;
 import com.hms.api.repository.AppointmentRepository;
@@ -96,13 +97,13 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.findPatientOverlappingAppointments(2L, start, end, null)).thenReturn(Collections.emptyList());
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Appointment result = bookingService.bookAppointment(
+        AppointmentResponseDto result = bookingService.bookAppointment(
                 2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Regular checkup", "ADMIN", "admin123"
         );
 
-        assertThat(result.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
-        assertThat(result.getConfirmedAt()).isEqualTo(fixedClock.instant());
-        assertThat(result.getCreatedBy()).isEqualTo("admin123");
+        assertThat(result.status()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(result.confirmedAt()).isEqualTo(fixedClock.instant());
+        assertThat(result.createdBy()).isEqualTo("admin123");
     }
 
     @Test
@@ -116,12 +117,12 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.findPatientOverlappingAppointments(2L, start, end, null)).thenReturn(Collections.emptyList());
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Appointment result = bookingService.bookAppointment(
+        AppointmentResponseDto result = bookingService.bookAppointment(
                 2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Fever", "PATIENT", "patient123"
         );
 
-        assertThat(result.getStatus()).isEqualTo(AppointmentStatus.BOOKED);
-        assertThat(result.getConfirmedAt()).isNull();
+        assertThat(result.status()).isEqualTo(AppointmentStatus.BOOKED);
+        assertThat(result.confirmedAt()).isNull();
     }
 
     @Test
@@ -134,12 +135,12 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.findPatientOverlappingAppointments(2L, start, end, null)).thenReturn(Collections.emptyList());
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Appointment result = bookingService.bookAppointment(
+        AppointmentResponseDto result = bookingService.bookAppointment(
                 2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "Emergency walk-in", "RECEPTIONIST", "receptionist1"
         );
 
-        assertThat(result.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
-        assertThat(result.getType()).isEqualTo(AppointmentType.WALK_IN);
+        assertThat(result.status()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(result.type()).isEqualTo(AppointmentType.WALK_IN);
     }
 
     @Test
@@ -194,7 +195,7 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.findPatientOverlappingAppointments(2L, newStart, newEnd, 100L)).thenReturn(Collections.emptyList());
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Appointment rescheduled = bookingService.rescheduleAppointment(
+        AppointmentResponseDto rescheduled = bookingService.rescheduleAppointment(
                 100L, newStart, newEnd, 3L, "Doctor requested reschedule", "ADMIN", "admin1"
         );
 
@@ -203,8 +204,8 @@ class AppointmentBookingServiceTest {
         assertThat(oldAppt.isNeedsRescheduling()).isFalse();
 
         // Verify new appointment state
-        assertThat(rescheduled.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
-        assertThat(rescheduled.getRescheduledFrom().getId()).isEqualTo(100L);
-        assertThat(rescheduled.getStartTime()).isEqualTo(newStart);
+        assertThat(rescheduled.status()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(rescheduled.rescheduledFromId()).isEqualTo(100L);
+        assertThat(rescheduled.startTime()).isEqualTo(newStart);
     }
 }

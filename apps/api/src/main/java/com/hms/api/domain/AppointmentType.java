@@ -6,3 +6,4 @@ public enum AppointmentType {
     WALK_IN,
     FOLLOW_UP
 }
+

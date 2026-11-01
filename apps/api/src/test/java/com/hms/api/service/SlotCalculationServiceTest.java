@@ -185,3 +185,4 @@ class SlotCalculationServiceTest {
         assertThat(startTimes).contains(LocalTime.of(8, 30), LocalTime.of(8, 45));
     }
 }
+

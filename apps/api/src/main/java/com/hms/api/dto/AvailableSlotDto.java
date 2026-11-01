@@ -9,3 +9,4 @@ public record AvailableSlotDto(
         Instant endTime,
         int slotMinutes
 ) {}
+

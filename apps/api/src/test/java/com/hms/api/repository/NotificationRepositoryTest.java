@@ -72,3 +72,4 @@ class NotificationRepositoryTest {
         }).isInstanceOf(Exception.class);
     }
 }
+

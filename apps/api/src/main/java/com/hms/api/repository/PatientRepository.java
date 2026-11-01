@@ -3,6 +3,7 @@ package com.hms.api.repository;
 import com.hms.api.domain.Patient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +14,11 @@ import java.util.Optional;
 @Repository
 public interface PatientRepository extends JpaRepository<Patient, Long> {
 
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    Optional<Patient> findById(Long id);
+
+    @EntityGraph(attributePaths = {"user"})
     Optional<Patient> findByUserId(Long userId);
 
     Optional<Patient> findByPhone(String phone);
@@ -30,3 +36,4 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
            "LOWER(p.email) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Patient> searchPatients(@Param("query") String query, Pageable pageable);
 }
+
