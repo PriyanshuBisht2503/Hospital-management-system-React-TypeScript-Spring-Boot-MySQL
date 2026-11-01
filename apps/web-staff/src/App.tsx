@@ -9,6 +9,7 @@ import { BranchesPage } from './pages/BranchesPage';
 import { DepartmentsPage } from './pages/DepartmentsPage';
 import { SpecialtiesPage } from './pages/SpecialtiesPage';
 import { RoomsPage } from './pages/RoomsPage';
+import { UsersPage } from './pages/UsersPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -40,9 +41,10 @@ export default function App() {
                 </Route>
               </Route>
 
-              {/* Admin-only Master Data Routes */}
+              {/* Admin-only Master Data & Management Routes */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                 <Route element={<AppLayout />}>
+                  <Route path="/users" element={<UsersPage />} />
                   <Route path="/branches" element={<BranchesPage />} />
                   <Route path="/departments" element={<DepartmentsPage />} />
                   <Route path="/specialties" element={<SpecialtiesPage />} />
