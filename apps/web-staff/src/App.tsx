@@ -5,6 +5,10 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from '@hms/ui';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { BranchesPage } from './pages/BranchesPage';
+import { DepartmentsPage } from './pages/DepartmentsPage';
+import { SpecialtiesPage } from './pages/SpecialtiesPage';
+import { RoomsPage } from './pages/RoomsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -33,6 +37,16 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                </Route>
+              </Route>
+
+              {/* Admin-only Master Data Routes */}
+              <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/branches" element={<BranchesPage />} />
+                  <Route path="/departments" element={<DepartmentsPage />} />
+                  <Route path="/specialties" element={<SpecialtiesPage />} />
+                  <Route path="/rooms" element={<RoomsPage />} />
                 </Route>
               </Route>
 
