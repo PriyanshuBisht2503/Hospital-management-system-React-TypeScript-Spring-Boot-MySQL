@@ -243,7 +243,7 @@ public class AppointmentLifecycleService {
 
     private void verifyDoctorMatch(Appointment a, SecurityUser currentUser) {
         if (a.getDoctor().getUser() == null || !a.getDoctor().getUser().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("Access denied: you can only access appointments assigned to you");
+            throw new ResourceNotFoundException("Appointment not found: " + a.getId());
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.hms.api.service;
 
 import com.hms.api.domain.*;
+import com.hms.api.dto.AppointmentResponseDto;
 import com.hms.api.event.AppointmentBookedEvent;
 import com.hms.api.event.AppointmentCancelledEvent;
 import com.hms.api.event.AppointmentRescheduledEvent;
@@ -35,6 +36,12 @@ class AppointmentNotificationAndReminderTest {
     private AppointmentReminderService reminderService;
 
     @Autowired
+    private AppointmentBookingService bookingService;
+
+    @Autowired
+    private DoctorScheduleRepository scheduleRepository;
+
+    @Autowired
     private AppointmentRepository appointmentRepository;
 
     @Autowired
@@ -66,6 +73,7 @@ class AppointmentNotificationAndReminderTest {
     void setUp() {
         notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
+        scheduleRepository.deleteAll();
         doctorRepository.deleteAll();
         patientRepository.deleteAll();
         branchRepository.deleteAll();
@@ -75,6 +83,15 @@ class AppointmentNotificationAndReminderTest {
         doctor = doctorRepository.save(new Doctor(docUser, "Bio", "MD", "English", 10, new BigDecimal("500.00")));
         branch = branchRepository.save(new Branch("West Hospital", "WEST01", "West Rd", "City", "+91900222333", "west@example.com"));
 
+        for (DayOfWeek dow : DayOfWeek.values()) {
+            DoctorSchedule sched = new DoctorSchedule(
+                    doctor, branch, dow,
+                    LocalTime.of(8, 0), LocalTime.of(20, 0),
+                    30, LocalDate.now().minusDays(10)
+            );
+            scheduleRepository.save(sched);
+        }
+
         patient = new Patient("Notify Patient", "+919600000002", "notify.patient@example.com", LocalDate.of(1990, 1, 1), Gender.MALE);
         patient = patientRepository.save(patient);
 
@@ -82,13 +99,20 @@ class AppointmentNotificationAndReminderTest {
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
+        Thread.sleep(100);
         notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
+        scheduleRepository.deleteAll();
         doctorRepository.deleteAll();
         patientRepository.deleteAll();
         branchRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    private Instant getFutureSlotStart(int daysAhead, int hour, int minute) {
+        LocalDate date = LocalDate.now(ZoneId.of("Asia/Kolkata")).plusDays(daysAhead);
+        return LocalDateTime.of(date, LocalTime.of(hour, minute)).atZone(ZoneId.of("Asia/Kolkata")).toInstant();
     }
 
     @Test
@@ -221,5 +245,43 @@ class AppointmentNotificationAndReminderTest {
         List<Notification> notifications = notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId(), PageRequest.of(0, 10)).getContent();
         assertThat(notifications).hasSize(1);
         assertThat(notifications.get(0).getStatus()).isEqualTo(NotificationStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("Slow email service (3s sleep) does not delay booking (returns under 1s) and notification eventually completes")
+    void slowEmailServiceDoesNotDelayBooking() throws Exception {
+        doAnswer(invocation -> {
+            Thread.sleep(3000);
+            return null;
+        }).when(emailService).sendEmail(anyString(), anyString(), anyString());
+
+        Instant start = getFutureSlotStart(3, 10, 0);
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+
+        long startTime = System.currentTimeMillis();
+        AppointmentResponseDto response = bookingService.bookAppointment(
+                patient.getId(), doctor.getId(), branch.getId(),
+                start, end, AppointmentType.IN_PERSON, "Routine checkup",
+                Role.ADMIN, "admin"
+        );
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // 1. Assert bookAppointment returned in under 1 second
+        assertThat(elapsed).isLessThan(1000L);
+        assertThat(response.status()).isEqualTo(AppointmentStatus.CONFIRMED);
+
+        // 2. Poll until notification eventually becomes SENT or FAILED
+        Notification notification = null;
+        for (int i = 0; i < 80; i++) {
+            List<Notification> list = notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId(), PageRequest.of(0, 10)).getContent();
+            if (!list.isEmpty() && (list.get(0).getStatus() == NotificationStatus.SENT || list.get(0).getStatus() == NotificationStatus.FAILED)) {
+                notification = list.get(0);
+                break;
+            }
+            Thread.sleep(100);
+        }
+
+        assertThat(notification).isNotNull();
+        assertThat(notification.getStatus()).isIn(NotificationStatus.SENT, NotificationStatus.FAILED);
     }
 }

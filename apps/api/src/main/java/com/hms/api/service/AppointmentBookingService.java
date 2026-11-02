@@ -252,7 +252,7 @@ public class AppointmentBookingService {
     private void assertReadCommittedIsolation() {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             Integer isolationLevel = TransactionSynchronizationManager.getCurrentTransactionIsolationLevel();
-            if (isolationLevel != null && !isolationLevel.equals(TransactionDefinition.ISOLATION_READ_COMMITTED)) {
+            if (isolationLevel == null || !isolationLevel.equals(TransactionDefinition.ISOLATION_READ_COMMITTED)) {
                 throw new IllegalStateException("Expected isolation READ_COMMITTED but found: " + isolationLevel);
             }
         }

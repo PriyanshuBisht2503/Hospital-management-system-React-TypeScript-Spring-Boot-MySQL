@@ -5,7 +5,7 @@
 **Git Commit:** `321eefb2aea9596cf7c5d9eae88246e23824f16a`  
 **Date:** November 2, 2026  
 **Backend Stack:** Java 21, Spring Boot 3.4.2, Spring Data JPA / Hibernate, MySQL 8.0, Flyway  
-**Overall Backend Test Results:** **339 / 339 Tests Passing** (0 Failures, 0 Errors, 0 Skipped)  
+**Overall Backend Test Results:** **342 / 342 Tests Passing** (0 Failures, 0 Errors, 0 Skipped)  
 
 ---
 
@@ -252,19 +252,21 @@ AppointmentResponseDto rescheduled = bookingService.rescheduleAppointment(
   3. `AppointmentApiTest`: Ownership and access checks split into `patientCannotViewOrCancelAnotherPatientAppointment` and doctor isolation (+3)
   4. `AppointmentNotificationAndReminderTest`: Slow/failing mail server resilience test `failingMailServerDoesNotFailNotificationHandling` (+1)
   5. `AppointmentStateMachineTest`: Valid `BOOKED -> RESCHEDULED` transition test `bookedToRescheduled` (+1)
-- **Total: $332 + 7 = 339$ tests.**
+  6. `PatientApiTest`: Split into dedicated tests `doctorWithAppointmentCanViewPatientWithContactMasked`, `doctorWithNoAppointmentGets404IdenticalToNonexistentId`, `patientSearchForbiddenForPatients`, and `doctorSearchReturnsOnlyOwnPatientsWhileAdminSearchReturnsAll` (+2)
+  7. `AppointmentNotificationAndReminderTest`: Slow email service non-blocking booking test `slowEmailServiceDoesNotDelayBooking` (+1)
+- **Total: $332 + 10 = 342$ tests.**
 
 ### 4.2 Raw Maven Build Summary
 ```
 [INFO] Results:
 [INFO] 
-[INFO] Tests run: 339, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 342, Failures: 0, Errors: 0, Skipped: 0
 [INFO] 
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  01:06 min
-[INFO] Finished at: 2026-11-02T11:07:27+05:30
+[INFO] Total time:  02:42 min
+[INFO] Finished at: 2026-11-03T01:23:00+05:30
 [INFO] ------------------------------------------------------------------------
 ```
 
@@ -283,14 +285,16 @@ AppointmentResponseDto rescheduled = bookingService.rescheduleAppointment(
 10. `patientCannotViewOrCancelAnotherPatientAppointment()`
 11. `transactionVerificationReadCommittedActive()`
 
-#### `PatientApiTest` (7 tests):
+#### `PatientApiTest` (9 tests):
 1. `getPatientAnonymous401()`
 2. `patientCannotViewOtherPatient()`
 3. `patientCanViewSelf()`
-4. `doctorViewsPatientMaskedContact()`
-5. `adminViewsPatientFullContact()`
-6. `searchPatientAccessAndAudit()`
-7. `createPatientStaffOnly()`
+4. `doctorWithAppointmentCanViewPatientWithContactMasked()`
+5. `doctorWithNoAppointmentGets404IdenticalToNonexistentId()`
+6. `adminViewsPatientFullContact()`
+7. `patientSearchForbiddenForPatients()`
+8. `doctorSearchReturnsOnlyOwnPatientsWhileAdminSearchReturnsAll()`
+9. `createPatientStaffOnly()`
 
 #### `ScheduleExceptionApiTest` (5 tests):
 1. `doctorCreatesLeaveSuccessfully()`
@@ -363,7 +367,7 @@ assertThat(objectMapper.readTree(otherPatientResponse).get("status").asInt())
 
 ## 6. Review Item 5: Dedicated Asynchronous Notifications & Failure Resilience
 
-### 6.1 `AsyncConfig.java`
+### 6.1 `AsyncConfig.java` & Rejection Policy (ADR 0002)
 ```java
 package com.hms.api.config;
 
@@ -373,6 +377,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 @Configuration
 @EnableAsync
@@ -385,11 +390,13 @@ public class AsyncConfig {
         executor.setMaxPoolSize(10);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("notification-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
         return executor;
     }
 }
 ```
+*Note: Configured with `ThreadPoolExecutor.CallerRunsPolicy` as documented in [ADR 0002](file:///c:/Users/priya/OneDrive/Documents/HOSPITAL%20AI/docs/adr/0002-notification-executor-rejection-policy.md) so queue saturation executes tasks synchronously on caller thread without turning committed bookings into 500 errors.*
 
 ### 6.2 Event Listeners in `AppointmentNotificationListener.java`
 ```java
@@ -453,7 +460,7 @@ void failingMailServerDoesNotFailNotificationHandling() throws Exception {
 private void assertReadCommittedIsolation() {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
         Integer isolationLevel = TransactionSynchronizationManager.getCurrentTransactionIsolationLevel();
-        if (isolationLevel != null && !isolationLevel.equals(TransactionDefinition.ISOLATION_READ_COMMITTED)) {
+        if (isolationLevel == null || !isolationLevel.equals(TransactionDefinition.ISOLATION_READ_COMMITTED)) {
             throw new IllegalStateException("Expected isolation READ_COMMITTED but found: " + isolationLevel);
         }
     }
@@ -615,7 +622,7 @@ public AppointmentResponseDto rescheduleAppointment(
 | `com.hms.api.security.RoleEndpointSecurityMatrixTest` | 165 | 0 | 0 | 0 | PASS |
 | `com.hms.api.security.SecurityHandlerTest` | 3 | 0 | 0 | 0 | PASS |
 | `com.hms.api.service.AppointmentBookingServiceTest` | 6 | 0 | 0 | 0 | PASS |
-| `com.hms.api.service.AppointmentNotificationAndReminderTest` | 6 | 0 | 0 | 0 | PASS |
+| `com.hms.api.service.AppointmentNotificationAndReminderTest` | 7 | 0 | 0 | 0 | PASS |
 | `com.hms.api.service.AppointmentStateMachineTest` | 7 | 0 | 0 | 0 | PASS |
 | `com.hms.api.service.SlotCalculationServiceTest` | 4 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.AppointmentApiTest` | 11 | 0 | 0 | 0 | PASS |
@@ -627,9 +634,10 @@ public AppointmentResponseDto rescheduleAppointment(
 | `com.hms.api.web.FileStorageTest` | 6 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.MasterDataTest` | 7 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.PageResponseContractTest` | 2 | 0 | 0 | 0 | PASS |
-| `com.hms.api.web.PatientApiTest` | 7 | 0 | 0 | 0 | PASS |
+| `com.hms.api.web.PatientApiTest` | 9 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.ScheduleExceptionApiTest` | 5 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.Step3BAuthTest` | 14 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.UnverifiedRegistrationLinkingTest` | 1 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.UserManagementTest` | 5 | 0 | 0 | 0 | PASS |
-| **Total** | **339** | **0** | **0** | **0** | **PASS** |
+| **Total** | **342** | **0** | **0** | **0** | **PASS** |
+

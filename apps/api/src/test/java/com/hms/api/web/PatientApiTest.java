@@ -172,9 +172,9 @@ class PatientApiTest {
     }
 
     @Test
-    @DisplayName("Doctor can view patient with appointment (masked contact); doctor without appointment receives 404")
-    void doctorViewsPatientMaskedContact() throws Exception {
-        // 1. Doctor has appointment with patient1 -> 200 OK with masked contact
+    @DisplayName("DOCTOR with an appointment with the patient can view (contact masked)")
+    void doctorWithAppointmentCanViewPatientWithContactMasked() throws Exception {
+        // Doctor has appointment with patient1 -> 200 OK with masked contact
         mockMvc.perform(get("/api/patients/" + patient1.getId())
                         .header("Authorization", doctorToken))
                 .andExpect(status().isOk())
@@ -189,11 +189,28 @@ class PatientApiTest {
         assertThat(logs).isNotEmpty();
         assertThat(logs.get(0).getEntityId()).isEqualTo(String.valueOf(patient1.getId()));
         assertThat(logs.get(0).getDetails()).isNull();
+    }
 
-        // 2. Doctor has NO appointment with patient2 -> 404 Not Found
-        mockMvc.perform(get("/api/patients/" + patient2.getId())
+    @Test
+    @DisplayName("DOCTOR with no appointment gets 404 identical to a nonexistent id")
+    void doctorWithNoAppointmentGets404IdenticalToNonexistentId() throws Exception {
+        // 1. Doctor views patient2 (patient exists, but no appointment with this doctor) -> 404
+        String unappointedPatientResponse = mockMvc.perform(get("/api/patients/" + patient2.getId())
                         .header("Authorization", doctorToken))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 2. Doctor views nonexistent patient id 999999 -> 404
+        String nonexistentResponse = mockMvc.perform(get("/api/patients/999999")
+                        .header("Authorization", doctorToken))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 3. Confirm both return identical 404 responses (status, error message) to prevent enumeration
+        assertThat(objectMapper.readTree(unappointedPatientResponse).get("status").asInt()).isEqualTo(404);
+        assertThat(objectMapper.readTree(nonexistentResponse).get("status").asInt()).isEqualTo(404);
+        assertThat(objectMapper.readTree(unappointedPatientResponse).get("error").asText())
+                .isEqualTo(objectMapper.readTree(nonexistentResponse).get("error").asText());
     }
 
     @Test
@@ -207,19 +224,24 @@ class PatientApiTest {
     }
 
     @Test
-    @DisplayName("Patient search: forbidden for patients, doctor restricted to appointed patients, admin sees all")
-    void searchPatientAccessAndAudit() throws Exception {
-        // Patient cannot search -> 403
+    @DisplayName("Patient search is forbidden for patients (403 Forbidden)")
+    void patientSearchForbiddenForPatients() throws Exception {
         mockMvc.perform(get("/api/patients")
                         .header("Authorization", patient1Token))
                 .andExpect(status().isForbidden());
+    }
 
+    @Test
+    @DisplayName("DOCTOR search returns only their own patients, while ADMIN search returns all")
+    void doctorSearchReturnsOnlyOwnPatientsWhileAdminSearchReturnsAll() throws Exception {
         // Doctor search: returns ONLY patient1 (who has appointment with doctor), NOT patient2
         mockMvc.perform(get("/api/patients?search=Patient")
                         .header("Authorization", doctorToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
-                .andExpect(jsonPath("$.content[0].id").value(patient1.getId()));
+                .andExpect(jsonPath("$.content[0].id").value(patient1.getId()))
+                .andExpect(jsonPath("$.content[0].phone").doesNotExist())
+                .andExpect(jsonPath("$.content[0].email").doesNotExist());
 
         // Admin search: returns both patient1 and patient2
         mockMvc.perform(get("/api/patients?search=Patient")
