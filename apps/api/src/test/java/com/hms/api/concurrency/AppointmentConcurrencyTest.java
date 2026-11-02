@@ -105,7 +105,9 @@ class AppointmentConcurrencyTest {
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
+        // Allow in-flight async background notification tasks to complete before tearing down
+        Thread.sleep(300);
         notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
@@ -137,6 +139,7 @@ class AppointmentConcurrencyTest {
 
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger conflictCount = new AtomicInteger(0);
+        List<Throwable> unexpectedFailures = new CopyOnWriteArrayList<>();
         List<Future<?>> futures = new ArrayList<>();
 
         for (int i = 0; i < threads; i++) {
@@ -147,16 +150,16 @@ class AppointmentConcurrencyTest {
                     bookingService.bookAppointment(
                             p.getId(), doctor.getId(), branch.getId(),
                             slotStart, slotEnd, AppointmentType.IN_PERSON,
-                            "Concurrency test", "ADMIN", "admin"
+                            "Concurrency test", Role.ADMIN, "admin"
                     );
                     successCount.incrementAndGet();
-                } catch (ConflictException | DataIntegrityViolationException e) {
+                } catch (ConflictException e) {
                     conflictCount.incrementAndGet();
                 } catch (Exception e) {
-                    if (e.getCause() instanceof ConflictException || e.getCause() instanceof DataIntegrityViolationException) {
+                    if (e.getCause() instanceof ConflictException) {
                         conflictCount.incrementAndGet();
                     } else {
-                        throw new RuntimeException(e);
+                        unexpectedFailures.add(e);
                     }
                 }
             }));
@@ -167,12 +170,13 @@ class AppointmentConcurrencyTest {
         }
         executor.shutdown();
 
+        assertThat(unexpectedFailures).as("No unexpected database/integrity exceptions allowed in service concurrency").isEmpty();
         assertThat(successCount.get())
                 .as("Exactly ONE booking must succeed for identical slot")
                 .isEqualTo(1);
 
         assertThat(conflictCount.get())
-                .as("Remaining 19 attempts must be rejected with conflict")
+                .as("Remaining 19 attempts must be rejected with ConflictException")
                 .isEqualTo(19);
 
         long activeApptCount = appointmentRepository.count();
@@ -193,10 +197,10 @@ class AppointmentConcurrencyTest {
         Instant oldEnd2 = oldStart2.plus(30, ChronoUnit.MINUTES);
 
         AppointmentResponseDto appt1 = bookingService.bookAppointment(
-                p1.getId(), doctor.getId(), branch.getId(), oldStart1, oldEnd1, AppointmentType.IN_PERSON, "Visit 1", "ADMIN", "admin"
+                p1.getId(), doctor.getId(), branch.getId(), oldStart1, oldEnd1, AppointmentType.IN_PERSON, "Visit 1", Role.ADMIN, "admin"
         );
         AppointmentResponseDto appt2 = bookingService.bookAppointment(
-                p2.getId(), doctor.getId(), branch.getId(), oldStart2, oldEnd2, AppointmentType.IN_PERSON, "Visit 2", "ADMIN", "admin"
+                p2.getId(), doctor.getId(), branch.getId(), oldStart2, oldEnd2, AppointmentType.IN_PERSON, "Visit 2", Role.ADMIN, "admin"
         );
 
         // Target new slot: date1 at 14:00
@@ -207,18 +211,23 @@ class AppointmentConcurrencyTest {
         CyclicBarrier barrier = new CyclicBarrier(2);
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger conflictCount = new AtomicInteger(0);
+        List<Throwable> unexpectedFailures = new CopyOnWriteArrayList<>();
 
         Future<?> f1 = executor.submit(() -> {
             try {
                 barrier.await();
                 bookingService.rescheduleAppointment(
-                        appt1.id(), targetStart, targetEnd, branch.getId(), "Reschedule 1", "ADMIN", "admin"
+                        appt1.id(), targetStart, targetEnd, branch.getId(), "Reschedule 1", Role.ADMIN, "admin"
                 );
                 successCount.incrementAndGet();
-            } catch (ConflictException | DataIntegrityViolationException e) {
+            } catch (ConflictException e) {
                 conflictCount.incrementAndGet();
             } catch (Exception e) {
-                conflictCount.incrementAndGet();
+                if (e.getCause() instanceof ConflictException) {
+                    conflictCount.incrementAndGet();
+                } else {
+                    unexpectedFailures.add(e);
+                }
             }
         });
 
@@ -226,13 +235,17 @@ class AppointmentConcurrencyTest {
             try {
                 barrier.await();
                 bookingService.rescheduleAppointment(
-                        appt2.id(), targetStart, targetEnd, branch.getId(), "Reschedule 2", "ADMIN", "admin"
+                        appt2.id(), targetStart, targetEnd, branch.getId(), "Reschedule 2", Role.ADMIN, "admin"
                 );
                 successCount.incrementAndGet();
-            } catch (ConflictException | DataIntegrityViolationException e) {
+            } catch (ConflictException e) {
                 conflictCount.incrementAndGet();
             } catch (Exception e) {
-                conflictCount.incrementAndGet();
+                if (e.getCause() instanceof ConflictException) {
+                    conflictCount.incrementAndGet();
+                } else {
+                    unexpectedFailures.add(e);
+                }
             }
         });
 
@@ -240,6 +253,7 @@ class AppointmentConcurrencyTest {
         f2.get(15, TimeUnit.SECONDS);
         executor.shutdown();
 
+        assertThat(unexpectedFailures).as("No unexpected database/integrity exceptions allowed in reschedule concurrency").isEmpty();
         assertThat(successCount.get()).isEqualTo(1);
         assertThat(conflictCount.get()).isEqualTo(1);
     }
@@ -256,7 +270,7 @@ class AppointmentConcurrencyTest {
 
         // Book 10:00 to 10:30
         bookingService.bookAppointment(
-                p1.getId(), doctor.getId(), branch.getId(), start1, end1, AppointmentType.IN_PERSON, "First", "ADMIN", "admin"
+                p1.getId(), doctor.getId(), branch.getId(), start1, end1, AppointmentType.IN_PERSON, "First", Role.ADMIN, "admin"
         );
 
         // Attempt staggered overlap: 10:15 to 10:45
@@ -265,7 +279,7 @@ class AppointmentConcurrencyTest {
 
         org.junit.jupiter.api.Assertions.assertThrows(ConflictException.class, () ->
                 bookingService.bookAppointment(
-                        p2.getId(), doctor.getId(), branch.getId(), start2, end2, AppointmentType.WALK_IN, "Emergency overlap", "ADMIN", "admin"
+                        p2.getId(), doctor.getId(), branch.getId(), start2, end2, AppointmentType.WALK_IN, "Emergency overlap", Role.ADMIN, "admin"
                 )
         );
     }
@@ -282,7 +296,7 @@ class AppointmentConcurrencyTest {
 
         // Book
         AppointmentResponseDto appt = bookingService.bookAppointment(
-                p1.getId(), doctor.getId(), branch.getId(), start, end, AppointmentType.IN_PERSON, "To cancel", "ADMIN", "admin"
+                p1.getId(), doctor.getId(), branch.getId(), start, end, AppointmentType.IN_PERSON, "To cancel", Role.ADMIN, "admin"
         );
 
         // Cancel
@@ -293,7 +307,7 @@ class AppointmentConcurrencyTest {
 
         // Rebook immediately into the exact same slot by p2 -> SUCCESS!
         AppointmentResponseDto rebooked = bookingService.bookAppointment(
-                p2.getId(), doctor.getId(), branch.getId(), start, end, AppointmentType.IN_PERSON, "Rebooked slot", "ADMIN", "admin"
+                p2.getId(), doctor.getId(), branch.getId(), start, end, AppointmentType.IN_PERSON, "Rebooked slot", Role.ADMIN, "admin"
         );
 
         assertThat(rebooked.status()).isEqualTo(AppointmentStatus.CONFIRMED);
@@ -333,7 +347,7 @@ class AppointmentConcurrencyTest {
             try {
                 barrier.await();
                 bookingService.bookAppointment(
-                        p1.getId(), doctor.getId(), branch.getId(), sameStart, sameEnd, AppointmentType.IN_PERSON, "Doc 1 Slot", "ADMIN", "admin"
+                        p1.getId(), doctor.getId(), branch.getId(), sameStart, sameEnd, AppointmentType.IN_PERSON, "Doc 1 Slot", Role.ADMIN, "admin"
                 );
                 successCount.incrementAndGet();
             } catch (Exception e) {
@@ -345,7 +359,7 @@ class AppointmentConcurrencyTest {
             try {
                 barrier.await();
                 bookingService.bookAppointment(
-                        p2.getId(), doctor2.getId(), branch.getId(), sameStart, sameEnd, AppointmentType.IN_PERSON, "Doc 2 Slot", "ADMIN", "admin"
+                        p2.getId(), doctor2.getId(), branch.getId(), sameStart, sameEnd, AppointmentType.IN_PERSON, "Doc 2 Slot", Role.ADMIN, "admin"
                 );
                 successCount.incrementAndGet();
             } catch (Exception e) {
@@ -358,6 +372,27 @@ class AppointmentConcurrencyTest {
         executor.shutdown();
 
         assertThat(successCount.get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Scenario 6: Direct repository duplicate active slot insert throws DataIntegrityViolationException (proves unique key backstop)")
+    void duplicateActiveSlotDirectInsertThrowsDataIntegrityViolationException() {
+        Patient p1 = createPatient("Direct Patient 1", "+919700006001", "dir1@example.com");
+        Patient p2 = createPatient("Direct Patient 2", "+919700006002", "dir2@example.com");
+
+        LocalDate date = LocalDate.now(ZoneId.of("Asia/Kolkata")).plusDays(12);
+        Instant start = LocalDateTime.of(date, LocalTime.of(16, 0)).atZone(ZoneId.of("Asia/Kolkata")).toInstant();
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+
+        Appointment appt1 = new Appointment(p1, doctor, branch, start, end, AppointmentType.IN_PERSON, AppointmentStatus.CONFIRMED);
+        appointmentRepository.saveAndFlush(appt1);
+
+        Appointment duplicateSlotAppt = new Appointment(p2, doctor, branch, start, end, AppointmentType.IN_PERSON, AppointmentStatus.CONFIRMED);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                DataIntegrityViolationException.class,
+                () -> appointmentRepository.saveAndFlush(duplicateSlotAppt)
+        );
     }
 }
 

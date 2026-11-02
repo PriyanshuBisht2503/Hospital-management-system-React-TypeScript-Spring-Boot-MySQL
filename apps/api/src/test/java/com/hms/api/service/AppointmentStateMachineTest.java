@@ -48,6 +48,15 @@ class AppointmentStateMachineTest {
     }
 
     @Test
+    @DisplayName("Valid transition BOOKED -> RESCHEDULED sets status to RESCHEDULED")
+    void bookedToRescheduled() {
+        Appointment a = createAppointment(AppointmentStatus.BOOKED, fixedClock.instant().plus(2, ChronoUnit.DAYS), fixedClock.instant().plus(2, ChronoUnit.DAYS).plus(30, ChronoUnit.MINUTES));
+        stateMachine.applyTransition(a, AppointmentStatus.RESCHEDULED, fixedClock, zone);
+
+        assertThat(a.getStatus()).isEqualTo(AppointmentStatus.RESCHEDULED);
+    }
+
+    @Test
     @DisplayName("Invalid transition BOOKED -> CHECKED_IN throws ConflictException")
     void invalidDirectTransitionThrows() {
         Appointment a = createAppointment(AppointmentStatus.BOOKED, fixedClock.instant(), fixedClock.instant().plus(30, ChronoUnit.MINUTES));

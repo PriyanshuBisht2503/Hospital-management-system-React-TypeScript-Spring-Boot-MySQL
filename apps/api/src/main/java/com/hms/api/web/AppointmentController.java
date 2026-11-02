@@ -2,9 +2,11 @@ package com.hms.api.web;
 
 import com.hms.api.domain.Appointment;
 import com.hms.api.domain.AppointmentStatus;
+import com.hms.api.domain.Patient;
 import com.hms.api.domain.Role;
 import com.hms.api.dto.*;
 import com.hms.api.exception.BadRequestException;
+import com.hms.api.exception.ResourceNotFoundException;
 import com.hms.api.repository.PatientRepository;
 import com.hms.api.security.ClientIpResolver;
 import com.hms.api.security.SecurityUser;
@@ -57,16 +59,11 @@ public class AppointmentController {
             @AuthenticationPrincipal SecurityUser currentUser
     ) {
         if (currentUser.getRole() == Role.PATIENT) {
-            patientRepository.findByUserId(currentUser.getId()).ifPresentOrElse(
-                    p -> {
-                        if (!p.getId().equals(request.patientId())) {
-                            throw new AccessDeniedException("Access denied: patients can only book appointments for themselves");
-                        }
-                    },
-                    () -> {
-                        throw new BadRequestException("No patient profile linked to this user account");
-                    }
-            );
+            Patient patient = patientRepository.findById(request.patientId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + request.patientId()));
+            if (patient.getUser() == null || !patient.getUser().getId().equals(currentUser.getId())) {
+                throw new ResourceNotFoundException("Patient not found: " + request.patientId());
+            }
         }
 
         boolean maskPatientContact = currentUser.getRole() == Role.DOCTOR;
@@ -78,7 +75,7 @@ public class AppointmentController {
                 request.endTime(),
                 request.type(),
                 request.reasonForVisit(),
-                currentUser.getRole().name(),
+                currentUser.getRole(),
                 currentUser.getUsername(),
                 maskPatientContact
         );
@@ -205,7 +202,7 @@ public class AppointmentController {
                 rescheduleRequest.newEndTime(),
                 rescheduleRequest.newBranchId(),
                 rescheduleRequest.reason(),
-                currentUser.getRole().name(),
+                currentUser.getRole(),
                 currentUser.getUsername(),
                 maskPatientContact
         );

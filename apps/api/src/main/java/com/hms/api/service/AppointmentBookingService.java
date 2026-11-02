@@ -14,8 +14,10 @@ import com.hms.api.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -65,7 +67,7 @@ public class AppointmentBookingService {
             Instant endTime,
             AppointmentType type,
             String reasonForVisit,
-            String createdByRole,
+            Role createdByRole,
             String createdByUser
     ) {
         return bookAppointment(patientId, doctorId, branchId, startTime, endTime, type, reasonForVisit, createdByRole, createdByUser, false);
@@ -80,10 +82,13 @@ public class AppointmentBookingService {
             Instant endTime,
             AppointmentType type,
             String reasonForVisit,
-            String createdByRole,
+            Role createdByRole,
             String createdByUser,
             boolean maskPatientContact
     ) {
+        // Verify active isolation level is READ_COMMITTED (guarantees no outer transaction override)
+        assertReadCommittedIsolation();
+
         // 1. Pessimistic lock on the doctor row to serialize concurrent booking attempts
         Doctor doctor = doctorRepository.findByIdForUpdate(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
@@ -104,7 +109,7 @@ public class AppointmentBookingService {
 
         // 2. Booking Rules & Slot Validation
         if (type == AppointmentType.WALK_IN) {
-            boolean isStaff = "ADMIN".equals(createdByRole) || "RECEPTIONIST".equals(createdByRole);
+            boolean isStaff = createdByRole == Role.ADMIN || createdByRole == Role.RECEPTIONIST;
             if (!isStaff) {
                 throw new BadRequestException("Walk-in appointments can only be booked by hospital staff (ADMIN or RECEPTIONIST)");
             }
@@ -132,7 +137,7 @@ public class AppointmentBookingService {
         // 4. Initial Status Rule: Staff created -> CONFIRMED; Patient created -> BOOKED
         AppointmentStatus initialStatus;
         Instant confirmedAt = null;
-        if ("ADMIN".equals(createdByRole) || "RECEPTIONIST".equals(createdByRole)) {
+        if (createdByRole == Role.ADMIN || createdByRole == Role.RECEPTIONIST) {
             initialStatus = AppointmentStatus.CONFIRMED;
             confirmedAt = clock.instant();
         } else {
@@ -157,7 +162,7 @@ public class AppointmentBookingService {
             Instant newEndTime,
             Long newBranchId,
             String rescheduleReason,
-            String requestedByRole,
+            Role requestedByRole,
             String requestedByUser
     ) {
         return rescheduleAppointment(appointmentId, newStartTime, newEndTime, newBranchId, rescheduleReason, requestedByRole, requestedByUser, false);
@@ -170,10 +175,13 @@ public class AppointmentBookingService {
             Instant newEndTime,
             Long newBranchId,
             String rescheduleReason,
-            String requestedByRole,
+            Role requestedByRole,
             String requestedByUser,
             boolean maskPatientContact
     ) {
+        // Verify active isolation level is READ_COMMITTED (guarantees no outer transaction override)
+        assertReadCommittedIsolation();
+
         // 1. Resolve doctor and take exclusive per-doctor lock FIRST to serialize all bookings/reschedules for this doctor
         Long doctorId = appointmentRepository.findDoctorIdByAppointmentId(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found: " + appointmentId));
@@ -239,5 +247,14 @@ public class AppointmentBookingService {
         Appointment saved = appointmentRepository.saveAndFlush(newAppt);
         eventPublisher.publishEvent(new AppointmentRescheduledEvent(existing.getId(), saved.getId()));
         return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
+    }
+
+    private void assertReadCommittedIsolation() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            Integer isolationLevel = TransactionSynchronizationManager.getCurrentTransactionIsolationLevel();
+            if (isolationLevel != null && !isolationLevel.equals(TransactionDefinition.ISOLATION_READ_COMMITTED)) {
+                throw new IllegalStateException("Expected isolation READ_COMMITTED but found: " + isolationLevel);
+            }
+        }
     }
 }

@@ -237,7 +237,7 @@ public class AppointmentLifecycleService {
 
     private void verifyPatientMatch(Appointment a, SecurityUser currentUser) {
         if (a.getPatient().getUser() == null || !a.getPatient().getUser().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("Access denied: you can only access your own appointments");
+            throw new ResourceNotFoundException("Appointment not found: " + a.getId());
         }
     }
 

@@ -102,7 +102,7 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AppointmentResponseDto result = bookingService.bookAppointment(
-                2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Regular checkup", "ADMIN", "admin123"
+                2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Regular checkup", Role.ADMIN, "admin123"
         );
 
         assertThat(result.status()).isEqualTo(AppointmentStatus.CONFIRMED);
@@ -122,7 +122,7 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AppointmentResponseDto result = bookingService.bookAppointment(
-                2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Fever", "PATIENT", "patient123"
+                2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Fever", Role.PATIENT, "patient123"
         );
 
         assertThat(result.status()).isEqualTo(AppointmentStatus.BOOKED);
@@ -140,7 +140,7 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AppointmentResponseDto result = bookingService.bookAppointment(
-                2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "Emergency walk-in", "RECEPTIONIST", "receptionist1"
+                2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "Emergency walk-in", Role.RECEPTIONIST, "receptionist1"
         );
 
         assertThat(result.status()).isEqualTo(AppointmentStatus.CONFIRMED);
@@ -155,12 +155,12 @@ class AppointmentBookingServiceTest {
 
         // Patient attempting walk-in
         assertThatThrownBy(() -> bookingService.bookAppointment(
-                2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "Emergency", "PATIENT", "pat1"
+                2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "Emergency", Role.PATIENT, "pat1"
         )).isInstanceOf(BadRequestException.class);
 
         // Staff walk-in without reason
         assertThatThrownBy(() -> bookingService.bookAppointment(
-                2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "", "ADMIN", "admin1"
+                2L, 1L, 3L, start, end, AppointmentType.WALK_IN, "", Role.ADMIN, "admin1"
         )).isInstanceOf(BadRequestException.class);
     }
 
@@ -175,7 +175,7 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.findPatientOverlappingAppointments(2L, start, end, null)).thenReturn(List.of(new Appointment()));
 
         assertThatThrownBy(() -> bookingService.bookAppointment(
-                2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Checkup", "PATIENT", "pat1"
+                2L, 1L, 3L, start, end, AppointmentType.IN_PERSON, "Checkup", Role.PATIENT, "pat1"
         )).isInstanceOf(ConflictException.class)
           .hasMessageContaining("Patient already has an active appointment");
     }
@@ -202,7 +202,7 @@ class AppointmentBookingServiceTest {
         when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AppointmentResponseDto rescheduled = bookingService.rescheduleAppointment(
-                100L, newStart, newEnd, 3L, "Doctor requested reschedule", "ADMIN", "admin1"
+                100L, newStart, newEnd, 3L, "Doctor requested reschedule", Role.ADMIN, "admin1", false
         );
 
         // Verify old appointment state

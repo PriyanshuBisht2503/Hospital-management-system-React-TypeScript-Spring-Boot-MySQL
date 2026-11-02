@@ -2,11 +2,13 @@ package com.hms.api.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hms.api.domain.*;
+import com.hms.api.dto.AppointmentResponseDto;
 import com.hms.api.dto.BookAppointmentRequest;
 import com.hms.api.dto.CancelAppointmentRequest;
 import com.hms.api.dto.RescheduleAppointmentRequest;
 import com.hms.api.repository.*;
 import com.hms.api.security.JwtTokenProvider;
+import com.hms.api.service.AppointmentBookingService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -58,6 +61,9 @@ class AppointmentApiTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AppointmentBookingService bookingService;
 
     @Autowired
     private JwtTokenProvider tokenProvider;
@@ -118,7 +124,9 @@ class AppointmentApiTest {
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
+        // Allow in-flight async background notification tasks to complete before tearing down
+        Thread.sleep(150);
         notificationRepository.deleteAll();
         appointmentRepository.deleteAll();
         scheduleRepository.deleteAll();
@@ -175,22 +183,40 @@ class AppointmentApiTest {
     }
 
     @Test
-    @DisplayName("Patient cannot book for a different patient (403 Forbidden)")
+    @DisplayName("Patient booking with someone else's ID or nonexistent ID returns identical 404 Not Found")
     void patientCannotBookForOthers() throws Exception {
         Instant start = getFutureSlotStart(3, 11, 30);
         Instant end = start.plus(30, ChronoUnit.MINUTES);
 
-        // patient1 tries to book for patient2
-        BookAppointmentRequest req = new BookAppointmentRequest(
+        // 1. patient1 tries to book for patient2 (someone else's patient id) -> 404 Not Found
+        BookAppointmentRequest reqOther = new BookAppointmentRequest(
                 patient2.getId(), doctor.getId(), branch.getId(),
                 start, end, AppointmentType.IN_PERSON, "Checkup"
         );
-
-        mockMvc.perform(post("/api/appointments")
+        String respOther = mockMvc.perform(post("/api/appointments")
                         .header("Authorization", patient1Token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isForbidden());
+                        .content(objectMapper.writeValueAsString(reqOther)))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 2. patient1 tries to book for nonexistent patient id -> 404 Not Found
+        BookAppointmentRequest reqNonexistent = new BookAppointmentRequest(
+                999999L, doctor.getId(), branch.getId(),
+                start, end, AppointmentType.IN_PERSON, "Checkup"
+        );
+        String respNonexistent = mockMvc.perform(post("/api/appointments")
+                        .header("Authorization", patient1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reqNonexistent)))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 3. Confirm identical error response (prevent enumeration)
+        assertThat(objectMapper.readTree(respOther).get("status").asInt()).isEqualTo(404);
+        assertThat(objectMapper.readTree(respNonexistent).get("status").asInt()).isEqualTo(404);
+        assertThat(objectMapper.readTree(respOther).get("error").asText())
+                .isEqualTo(objectMapper.readTree(respNonexistent).get("error").asText());
     }
 
     @Test
@@ -433,7 +459,7 @@ class AppointmentApiTest {
     }
 
     @Test
-    @DisplayName("Patient cannot view or cancel another patient's appointment (403 Forbidden)")
+    @DisplayName("Patient viewing or cancelling another patient's appointment returns 404 identical to nonexistent appointment")
     void patientCannotViewOrCancelAnotherPatientAppointment() throws Exception {
         String patient2Token = "Bearer " + tokenProvider.generateAccessToken(patientUser2);
 
@@ -453,17 +479,56 @@ class AppointmentApiTest {
 
         Long apptId = objectMapper.readTree(response).get("id").asLong();
 
-        // Patient 2 attempts to view Patient 1's appointment -> 403 Forbidden
-        mockMvc.perform(get("/api/appointments/" + apptId)
+        // 1. Patient 2 attempts to view Patient 1's appointment -> 404 Not Found
+        String viewOtherResp = mockMvc.perform(get("/api/appointments/" + apptId)
                         .header("Authorization", patient2Token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
 
-        // Patient 2 attempts to cancel Patient 1's appointment -> 403 Forbidden
+        // 2. Patient 2 attempts to view nonexistent appointment -> 404 Not Found
+        String viewNonexistentResp = mockMvc.perform(get("/api/appointments/999999")
+                        .header("Authorization", patient2Token))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(objectMapper.readTree(viewOtherResp).get("status").asInt()).isEqualTo(404);
+        assertThat(objectMapper.readTree(viewOtherResp).get("error").asText())
+                .isEqualTo(objectMapper.readTree(viewNonexistentResp).get("error").asText());
+
+        // 3. Patient 2 attempts to cancel Patient 1's appointment -> 404 Not Found
         CancelAppointmentRequest cancelReq = new CancelAppointmentRequest("Unauthorized cancel attempt");
-        mockMvc.perform(patch("/api/appointments/" + apptId + "/cancel")
+        String cancelOtherResp = mockMvc.perform(patch("/api/appointments/" + apptId + "/cancel")
                         .header("Authorization", patient2Token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cancelReq)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 4. Patient 2 attempts to cancel nonexistent appointment -> 404 Not Found
+        String cancelNonexistentResp = mockMvc.perform(patch("/api/appointments/999999/cancel")
+                        .header("Authorization", patient2Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(cancelReq)))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(objectMapper.readTree(cancelOtherResp).get("status").asInt()).isEqualTo(404);
+        assertThat(objectMapper.readTree(cancelOtherResp).get("error").asText())
+                .isEqualTo(objectMapper.readTree(cancelNonexistentResp).get("error").asText());
+    }
+
+    @Test
+    @DisplayName("Transaction verification: bookingService runs under READ_COMMITTED without outer transaction interference")
+    void transactionVerificationReadCommittedActive() {
+        // Direct call to bookingService succeeds and asserts internal READ_COMMITTED isolation level
+        Instant start = getFutureSlotStart(10, 16, 0);
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+
+        AppointmentResponseDto dto = bookingService.bookAppointment(
+                patient1.getId(), doctor.getId(), branch.getId(),
+                start, end, AppointmentType.IN_PERSON, "Tx check", Role.ADMIN, "admin"
+        );
+
+        assertThat(dto.status()).isEqualTo(AppointmentStatus.CONFIRMED);
     }
 }

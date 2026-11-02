@@ -133,4 +133,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     @Query("SELECT a FROM Appointment a WHERE a.status = 'BOOKED' AND a.createdAt <= :threshold")
     List<Appointment> findPendingAutoConfirm(@Param("threshold") Instant threshold);
+
+    @Query("SELECT COUNT(a) > 0 FROM Appointment a WHERE a.doctor.user.id = :doctorUserId AND a.patient.id = :patientId")
+    boolean existsByDoctorUserIdAndPatientId(@Param("doctorUserId") Long doctorUserId, @Param("patientId") Long patientId);
 }

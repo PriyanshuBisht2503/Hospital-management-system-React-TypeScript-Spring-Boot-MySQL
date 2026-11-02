@@ -93,13 +93,17 @@ class AppointmentNotificationAndReminderTest {
 
     @Test
     @DisplayName("Appointment booked event creates SENT notification and sends email")
-    void appointmentBookedNotification() {
+    void appointmentBookedNotification() throws Exception {
         Instant start = clock.instant().plus(2, ChronoUnit.DAYS);
         Instant end = start.plus(30, ChronoUnit.MINUTES);
         Appointment appt = new Appointment(patient, doctor, branch, start, end, AppointmentType.IN_PERSON, AppointmentStatus.CONFIRMED);
         appt = appointmentRepository.save(appt);
 
         notificationListener.onAppointmentBooked(new AppointmentBookedEvent(appt.getId()));
+
+        for (int i = 0; i < 20 && notificationRepository.count() == 0; i++) {
+            Thread.sleep(50);
+        }
 
         List<Notification> notifications = notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId(), PageRequest.of(0, 10)).getContent();
         assertThat(notifications).hasSize(1);
@@ -113,7 +117,7 @@ class AppointmentNotificationAndReminderTest {
 
     @Test
     @DisplayName("Appointment cancelled event creates cancellation notification")
-    void appointmentCancelledNotification() {
+    void appointmentCancelledNotification() throws Exception {
         Instant start = clock.instant().plus(2, ChronoUnit.DAYS);
         Instant end = start.plus(30, ChronoUnit.MINUTES);
         Appointment appt = new Appointment(patient, doctor, branch, start, end, AppointmentType.IN_PERSON, AppointmentStatus.CANCELLED);
@@ -121,6 +125,10 @@ class AppointmentNotificationAndReminderTest {
         appt = appointmentRepository.save(appt);
 
         notificationListener.onAppointmentCancelled(new AppointmentCancelledEvent(appt.getId()));
+
+        for (int i = 0; i < 20 && notificationRepository.count() == 0; i++) {
+            Thread.sleep(50);
+        }
 
         List<Notification> notifications = notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId(), PageRequest.of(0, 10)).getContent();
         assertThat(notifications).hasSize(1);
@@ -190,5 +198,28 @@ class AppointmentNotificationAndReminderTest {
         List<Notification> notifications = notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId(), PageRequest.of(0, 10)).getContent();
         assertThat(notifications).hasSize(1);
         assertThat(notifications.get(0).getSubject()).contains("Reminder: Your appointment in 2 hours");
+    }
+
+    @Test
+    @DisplayName("Failing mail server does not block or fail appointment notification handling")
+    void failingMailServerDoesNotFailNotificationHandling() throws Exception {
+        doThrow(new RuntimeException("Mail server down")).when(emailService).sendEmail(anyString(), anyString(), anyString());
+
+        Instant start = clock.instant().plus(2, ChronoUnit.DAYS);
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+        Appointment appt = new Appointment(patient, doctor, branch, start, end, AppointmentType.IN_PERSON, AppointmentStatus.CONFIRMED);
+        final Appointment savedAppt = appointmentRepository.save(appt);
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+                notificationListener.onAppointmentBooked(new AppointmentBookedEvent(savedAppt.getId()))
+        );
+
+        for (int i = 0; i < 20 && notificationRepository.count() == 0; i++) {
+            Thread.sleep(50);
+        }
+
+        List<Notification> notifications = notificationRepository.findByPatientIdOrderByCreatedAtDesc(patient.getId(), PageRequest.of(0, 10)).getContent();
+        assertThat(notifications).hasSize(1);
+        assertThat(notifications.get(0).getStatus()).isEqualTo(NotificationStatus.FAILED);
     }
 }

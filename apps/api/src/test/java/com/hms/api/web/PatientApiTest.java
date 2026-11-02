@@ -17,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -57,6 +58,9 @@ class PatientApiTest {
     private DoctorRepository doctorRepository;
 
     @Autowired
+    private BranchRepository branchRepository;
+
+    @Autowired
     private AuditLogRepository auditLogRepository;
 
     @Autowired
@@ -69,6 +73,8 @@ class PatientApiTest {
 
     private Patient patient1;
     private Patient patient2;
+    private Doctor doctor;
+    private Branch branch;
 
     private String adminToken;
     private String doctorToken;
@@ -82,12 +88,15 @@ class PatientApiTest {
         scheduleRepository.deleteAll();
         doctorRepository.deleteAll();
         patientRepository.deleteAll();
+        branchRepository.deleteAll();
         userRepository.deleteAll();
         auditLogRepository.deleteAll();
 
+        branch = branchRepository.save(new Branch("Apex Hospital", "APEX01", "Ring Rd", "Pune", "+912011112222", "apex@example.com"));
+
         adminUser = userRepository.save(new User("admin.pat@example.com", "+919100000001", "pass", Role.ADMIN, "Admin User"));
         doctorUser = userRepository.save(new User("doctor.pat@example.com", "+919100000002", "pass", Role.DOCTOR, "Dr. User"));
-        doctorRepository.save(new Doctor(doctorUser, "Bio", "MBBS", "English", 5, new BigDecimal("500.00")));
+        doctor = doctorRepository.save(new Doctor(doctorUser, "Bio", "MBBS", "English", 5, new BigDecimal("500.00")));
 
         patientUser1 = userRepository.save(new User("p1.pat@example.com", "+919100000003", null, Role.PATIENT, "Patient One"));
         patientUser2 = userRepository.save(new User("p2.pat@example.com", "+919100000004", null, Role.PATIENT, "Patient Two"));
@@ -99,6 +108,9 @@ class PatientApiTest {
         patient2 = new Patient("Patient Two", "+919100000004", "p2.pat@example.com", LocalDate.of(1985, 10, 15), Gender.FEMALE);
         patient2.setUser(patientUser2);
         patient2 = patientRepository.save(patient2);
+
+        // Doctor has appointment with patient1 (granting clinical view to patient1, but NOT patient2)
+        appointmentRepository.save(new Appointment(patient1, doctor, branch, Instant.now().plusSeconds(3600), Instant.now().plusSeconds(5400), AppointmentType.IN_PERSON, AppointmentStatus.CONFIRMED));
 
         adminToken = "Bearer " + tokenProvider.generateAccessToken(adminUser);
         doctorToken = "Bearer " + tokenProvider.generateAccessToken(doctorUser);
@@ -113,6 +125,7 @@ class PatientApiTest {
         scheduleRepository.deleteAll();
         doctorRepository.deleteAll();
         patientRepository.deleteAll();
+        branchRepository.deleteAll();
         userRepository.deleteAll();
         auditLogRepository.deleteAll();
     }
@@ -125,11 +138,25 @@ class PatientApiTest {
     }
 
     @Test
-    @DisplayName("Patient cannot view another patient's profile (403 Forbidden)")
+    @DisplayName("Patient cannot view another patient's profile: returns 404 identical to nonexistent patient")
     void patientCannotViewOtherPatient() throws Exception {
-        mockMvc.perform(get("/api/patients/" + patient2.getId())
+        // 1. Patient 1 views Patient 2 (another patient) -> 404 Not Found
+        String otherPatientResponse = mockMvc.perform(get("/api/patients/" + patient2.getId())
                         .header("Authorization", patient1Token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 2. Patient 1 views Nonexistent patient -> 404 Not Found
+        String nonexistentResponse = mockMvc.perform(get("/api/patients/999999")
+                        .header("Authorization", patient1Token))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        // 3. Both responses must be identical in structure and message (prevent enumeration)
+        assertThat(objectMapper.readTree(otherPatientResponse).get("error").asText())
+                .isEqualTo(objectMapper.readTree(nonexistentResponse).get("error").asText());
+        assertThat(objectMapper.readTree(otherPatientResponse).get("status").asInt())
+                .isEqualTo(404);
     }
 
     @Test
@@ -145,8 +172,9 @@ class PatientApiTest {
     }
 
     @Test
-    @DisplayName("Rule 9: Doctor viewing patient receives masked phone and email (age and name only)")
+    @DisplayName("Doctor can view patient with appointment (masked contact); doctor without appointment receives 404")
     void doctorViewsPatientMaskedContact() throws Exception {
+        // 1. Doctor has appointment with patient1 -> 200 OK with masked contact
         mockMvc.perform(get("/api/patients/" + patient1.getId())
                         .header("Authorization", doctorToken))
                 .andExpect(status().isOk())
@@ -161,6 +189,11 @@ class PatientApiTest {
         assertThat(logs).isNotEmpty();
         assertThat(logs.get(0).getEntityId()).isEqualTo(String.valueOf(patient1.getId()));
         assertThat(logs.get(0).getDetails()).isNull();
+
+        // 2. Doctor has NO appointment with patient2 -> 404 Not Found
+        mockMvc.perform(get("/api/patients/" + patient2.getId())
+                        .header("Authorization", doctorToken))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -174,12 +207,21 @@ class PatientApiTest {
     }
 
     @Test
-    @DisplayName("Patient search: forbidden for patients, allowed for staff with SEARCH_PATIENTS audit")
+    @DisplayName("Patient search: forbidden for patients, doctor restricted to appointed patients, admin sees all")
     void searchPatientAccessAndAudit() throws Exception {
+        // Patient cannot search -> 403
         mockMvc.perform(get("/api/patients")
                         .header("Authorization", patient1Token))
                 .andExpect(status().isForbidden());
 
+        // Doctor search: returns ONLY patient1 (who has appointment with doctor), NOT patient2
+        mockMvc.perform(get("/api/patients?search=Patient")
+                        .header("Authorization", doctorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(patient1.getId()));
+
+        // Admin search: returns both patient1 and patient2
         mockMvc.perform(get("/api/patients?search=Patient")
                         .header("Authorization", adminToken))
                 .andExpect(status().isOk())

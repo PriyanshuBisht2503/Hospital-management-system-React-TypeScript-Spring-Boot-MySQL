@@ -17,7 +17,7 @@ import java.util.Set;
 public class AppointmentStateMachine {
 
     private static final Map<AppointmentStatus, Set<AppointmentStatus>> ALLOWED_TRANSITIONS = Map.of(
-            AppointmentStatus.BOOKED, EnumSet.of(AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED),
+            AppointmentStatus.BOOKED, EnumSet.of(AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED, AppointmentStatus.RESCHEDULED),
             AppointmentStatus.CONFIRMED, EnumSet.of(AppointmentStatus.CHECKED_IN, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW, AppointmentStatus.RESCHEDULED),
             AppointmentStatus.CHECKED_IN, EnumSet.of(AppointmentStatus.IN_CONSULTATION, AppointmentStatus.CANCELLED),
             AppointmentStatus.IN_CONSULTATION, EnumSet.of(AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED)

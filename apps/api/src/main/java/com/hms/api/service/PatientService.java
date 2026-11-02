@@ -7,6 +7,7 @@ import com.hms.api.dto.PageResponse;
 import com.hms.api.dto.PatientDto;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ResourceNotFoundException;
+import com.hms.api.repository.AppointmentRepository;
 import com.hms.api.repository.PatientRepository;
 import com.hms.api.security.SecurityUser;
 import org.springframework.data.domain.Page;
@@ -25,11 +26,18 @@ public class PatientService {
     public static final int MAX_PAGE_SIZE = 100;
 
     private final PatientRepository patientRepository;
+    private final AppointmentRepository appointmentRepository;
     private final AuditLogService auditLogService;
     private final Clock clock;
 
-    public PatientService(PatientRepository patientRepository, AuditLogService auditLogService, Clock clock) {
+    public PatientService(
+            PatientRepository patientRepository,
+            AppointmentRepository appointmentRepository,
+            AuditLogService auditLogService,
+            Clock clock
+    ) {
         this.patientRepository = patientRepository;
+        this.appointmentRepository = appointmentRepository;
         this.auditLogService = auditLogService;
         this.clock = clock;
     }
@@ -39,10 +47,18 @@ public class PatientService {
         Patient patient = patientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + id));
 
-        // Patient role can only view their own record
+        // Patient role can only view their own record; return 404 to prevent enumeration
         if (currentUser.getRole() == Role.PATIENT) {
             if (patient.getUser() == null || !patient.getUser().getId().equals(currentUser.getId())) {
-                throw new AccessDeniedException("Access denied: you can only view your own patient profile");
+                throw new ResourceNotFoundException("Patient not found: " + id);
+            }
+        }
+
+        // Doctor role can only view patients who have or had an appointment with them
+        if (currentUser.getRole() == Role.DOCTOR) {
+            boolean hasAppointment = appointmentRepository.existsByDoctorUserIdAndPatientId(currentUser.getId(), id);
+            if (!hasAppointment) {
+                throw new ResourceNotFoundException("Patient not found: " + id);
             }
         }
 
@@ -62,10 +78,19 @@ public class PatientService {
         int pageSize = (size <= 0) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         int pageNumber = Math.max(0, page);
 
-        Page<Patient> result = patientRepository.searchPatients(
-                query,
-                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
-        );
+        Page<Patient> result;
+        if (currentUser.getRole() == Role.DOCTOR) {
+            result = patientRepository.searchPatientsByDoctorUserId(
+                    currentUser.getId(),
+                    query,
+                    PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
+            );
+        } else {
+            result = patientRepository.searchPatients(
+                    query,
+                    PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"))
+            );
+        }
 
         // Rule 9: Audited with SEARCH_PATIENTS, search target only, no personal data in details
         String auditTarget = (query != null && !query.isBlank()) ? query.trim() : "ALL";

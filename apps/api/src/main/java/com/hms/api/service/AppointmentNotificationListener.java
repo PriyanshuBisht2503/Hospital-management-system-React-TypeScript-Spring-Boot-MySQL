@@ -46,6 +46,7 @@ public class AppointmentNotificationListener {
         this.clock = clock;
     }
 
+    @Async("notificationTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onAppointmentBooked(AppointmentBookedEvent event) {
@@ -67,6 +68,7 @@ public class AppointmentNotificationListener {
         });
     }
 
+    @Async("notificationTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onAppointmentCancelled(AppointmentCancelledEvent event) {
@@ -87,6 +89,7 @@ public class AppointmentNotificationListener {
         });
     }
 
+    @Async("notificationTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onAppointmentRescheduled(AppointmentRescheduledEvent event) {
