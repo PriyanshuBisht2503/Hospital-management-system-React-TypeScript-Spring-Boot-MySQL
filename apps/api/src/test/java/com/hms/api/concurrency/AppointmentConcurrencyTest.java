@@ -23,6 +23,7 @@ import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -297,6 +298,66 @@ class AppointmentConcurrencyTest {
 
         assertThat(rebooked.status()).isEqualTo(AppointmentStatus.CONFIRMED);
         assertThat(rebooked.patient().id()).isEqualTo(p2.getId());
+    }
+
+    @Test
+    @DisplayName("Scenario 5: Two different doctors booked at the same time slot in parallel -> both succeed (proves lock is per-doctor, not global)")
+    void parallelBookingsDifferentDoctorsBothSucceed() throws Exception {
+        User docUser2 = userRepository.save(new User("doc2.conc@example.com", "+919700000003", "pass", Role.DOCTOR, "Dr. Concurrency Two"));
+        Doctor doc2Entity = new Doctor(docUser2, "Cardio 2", "MD", "English", 12, new BigDecimal("600.00"));
+        doc2Entity.setBranches(Set.of(branch));
+        final Doctor doctor2 = doctorRepository.save(doc2Entity);
+
+        // Add 7-day schedule for doctor2 as well
+        for (DayOfWeek dow : DayOfWeek.values()) {
+            DoctorSchedule sched = new DoctorSchedule(
+                    doctor2, branch, dow,
+                    LocalTime.of(8, 0), LocalTime.of(18, 0),
+                    30, LocalDate.now().minusDays(10)
+            );
+            scheduleRepository.save(sched);
+        }
+
+        Patient p1 = createPatient("Diff Doctor P1", "+919700005001", "ddp1@example.com");
+        Patient p2 = createPatient("Diff Doctor P2", "+919700005002", "ddp2@example.com");
+
+        LocalDate date = LocalDate.now(ZoneId.of("Asia/Kolkata")).plusDays(8);
+        Instant sameStart = LocalDateTime.of(date, LocalTime.of(15, 0)).atZone(ZoneId.of("Asia/Kolkata")).toInstant();
+        Instant sameEnd = sameStart.plus(30, ChronoUnit.MINUTES);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        AtomicInteger successCount = new AtomicInteger(0);
+
+        Future<?> f1 = executor.submit(() -> {
+            try {
+                barrier.await();
+                bookingService.bookAppointment(
+                        p1.getId(), doctor.getId(), branch.getId(), sameStart, sameEnd, AppointmentType.IN_PERSON, "Doc 1 Slot", "ADMIN", "admin"
+                );
+                successCount.incrementAndGet();
+            } catch (Exception e) {
+                // ignore
+            }
+        });
+
+        Future<?> f2 = executor.submit(() -> {
+            try {
+                barrier.await();
+                bookingService.bookAppointment(
+                        p2.getId(), doctor2.getId(), branch.getId(), sameStart, sameEnd, AppointmentType.IN_PERSON, "Doc 2 Slot", "ADMIN", "admin"
+                );
+                successCount.incrementAndGet();
+            } catch (Exception e) {
+                // ignore
+            }
+        });
+
+        f1.get(15, TimeUnit.SECONDS);
+        f2.get(15, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        assertThat(successCount.get()).isEqualTo(2);
     }
 }
 

@@ -193,6 +193,8 @@ class AppointmentBookingServiceTest {
         Instant newStart = fixedClock.instant().plus(3, ChronoUnit.DAYS);
         Instant newEnd = newStart.plus(30, ChronoUnit.MINUTES);
 
+        when(appointmentRepository.findDoctorIdByAppointmentId(100L)).thenReturn(Optional.of(1L));
+        when(doctorRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(doctor));
         when(appointmentRepository.findById(100L)).thenReturn(Optional.of(oldAppt));
         when(slotCalculationService.isSlotOpen(1L, newStart, newEnd, 3L)).thenReturn(true);
         when(appointmentRepository.findDoctorOverlappingAppointments(1L, newStart, newEnd, 100L)).thenReturn(Collections.emptyList());

@@ -14,6 +14,7 @@ import com.hms.api.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -55,7 +56,7 @@ public class AppointmentBookingService {
         this.hospitalZone = ZoneId.of(timezone);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AppointmentResponseDto bookAppointment(
             Long patientId,
             Long doctorId,
@@ -70,7 +71,7 @@ public class AppointmentBookingService {
         return bookAppointment(patientId, doctorId, branchId, startTime, endTime, type, reasonForVisit, createdByRole, createdByUser, false);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AppointmentResponseDto bookAppointment(
             Long patientId,
             Long doctorId,
@@ -149,7 +150,7 @@ public class AppointmentBookingService {
         return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AppointmentResponseDto rescheduleAppointment(
             Long appointmentId,
             Instant newStartTime,
@@ -162,7 +163,7 @@ public class AppointmentBookingService {
         return rescheduleAppointment(appointmentId, newStartTime, newEndTime, newBranchId, rescheduleReason, requestedByRole, requestedByUser, false);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AppointmentResponseDto rescheduleAppointment(
             Long appointmentId,
             Instant newStartTime,
@@ -173,14 +174,18 @@ public class AppointmentBookingService {
             String requestedByUser,
             boolean maskPatientContact
     ) {
+        // 1. Resolve doctor and take exclusive per-doctor lock FIRST to serialize all bookings/reschedules for this doctor
+        Long doctorId = appointmentRepository.findDoctorIdByAppointmentId(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found: " + appointmentId));
+
+        Doctor doctor = doctorRepository.findByIdForUpdate(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+
+        // 2. Load appointment under doctor lock
         Appointment existing = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found: " + appointmentId));
 
-        // 1. Lock doctor
-        doctorRepository.findByIdForUpdate(existing.getDoctor().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
-
-        // 2. Validate transition to RESCHEDULED
+        // 3. Validate transition to RESCHEDULED
         stateMachine.validateTransition(existing, AppointmentStatus.RESCHEDULED, clock, hospitalZone);
 
         Long targetBranchId = newBranchId != null ? newBranchId : existing.getBranch().getId();

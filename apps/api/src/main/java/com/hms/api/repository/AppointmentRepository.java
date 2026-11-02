@@ -2,10 +2,12 @@ package com.hms.api.repository;
 
 import com.hms.api.domain.Appointment;
 import com.hms.api.domain.AppointmentStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,9 +20,17 @@ import java.util.Optional;
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
+    @Query("SELECT a.doctor.id FROM Appointment a WHERE a.id = :id")
+    Optional<Long> findDoctorIdByAppointmentId(@Param("id") Long id);
+
     @Override
     @EntityGraph(attributePaths = {"patient", "doctor", "doctor.user", "branch"})
     Optional<Appointment> findById(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = {"patient", "doctor", "doctor.user", "branch"})
+    @Query("SELECT a FROM Appointment a WHERE a.id = :id")
+    Optional<Appointment> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT a FROM Appointment a WHERE a.doctor.id = :doctorId " +
            "AND a.status NOT IN ('CANCELLED', 'RESCHEDULED') " +
