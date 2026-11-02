@@ -196,6 +196,12 @@ class ScheduleExceptionApiTest {
         mockMvc.perform(get("/api/admin/doctors/" + doctor1.getId() + "/exceptions")
                         .header("Authorization", doctor2Token))
                 .andExpect(status().isForbidden());
+
+        // Doctor 2 attempts to delete exception for Doctor 1 -> 403 Forbidden
+        ScheduleException ex1 = exceptionRepository.save(new ScheduleException(doctor1, LocalDate.now().plusDays(9), ScheduleExceptionType.LEAVE, "Leave"));
+        mockMvc.perform(delete("/api/admin/doctors/" + doctor1.getId() + "/exceptions/" + ex1.getId())
+                        .header("Authorization", doctor2Token))
+                .andExpect(status().isForbidden());
     }
 
     @Test

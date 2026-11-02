@@ -384,4 +384,86 @@ class AppointmentApiTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
     }
+
+    @Test
+    @DisplayName("Doctor cannot update status or cancel another doctor's appointment (403 Forbidden)")
+    void doctorCannotUpdateStatusOfAnotherDoctorAppointment() throws Exception {
+        User docUser2 = userRepository.save(new User("doc2.ownership@example.com", "+919200000088", "pass", Role.DOCTOR, "Dr. Other Doctor"));
+        Doctor doc2 = doctorRepository.save(new Doctor(docUser2, "Other Spec", "MD", "English", 10, new BigDecimal("600.00")));
+        String doctor2Token = "Bearer " + tokenProvider.generateAccessToken(docUser2);
+
+        Instant start = getFutureSlotStart(8, 14, 0);
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+        BookAppointmentRequest bookReq = new BookAppointmentRequest(
+                patient1.getId(), doctor.getId(), branch.getId(),
+                start, end, AppointmentType.IN_PERSON, "Consultation with Doctor 1"
+        );
+
+        String response = mockMvc.perform(post("/api/appointments")
+                        .header("Authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookReq)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long apptId = objectMapper.readTree(response).get("id").asLong();
+
+        // Doctor 2 attempts start-consultation on Doctor 1's appointment -> 403
+        mockMvc.perform(patch("/api/appointments/" + apptId + "/start-consultation")
+                        .header("Authorization", doctor2Token))
+                .andExpect(status().isForbidden());
+
+        // Doctor 2 attempts complete on Doctor 1's appointment -> 403
+        mockMvc.perform(patch("/api/appointments/" + apptId + "/complete")
+                        .header("Authorization", doctor2Token))
+                .andExpect(status().isForbidden());
+
+        // Doctor 2 attempts no-show on Doctor 1's appointment -> 403
+        mockMvc.perform(patch("/api/appointments/" + apptId + "/no-show")
+                        .header("Authorization", doctor2Token))
+                .andExpect(status().isForbidden());
+
+        // Doctor 2 attempts cancel on Doctor 1's appointment -> 403
+        CancelAppointmentRequest cancelReq = new CancelAppointmentRequest("Unauthorized cancel");
+        mockMvc.perform(patch("/api/appointments/" + apptId + "/cancel")
+                        .header("Authorization", doctor2Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(cancelReq)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Patient cannot view or cancel another patient's appointment (403 Forbidden)")
+    void patientCannotViewOrCancelAnotherPatientAppointment() throws Exception {
+        String patient2Token = "Bearer " + tokenProvider.generateAccessToken(patientUser2);
+
+        Instant start = getFutureSlotStart(9, 15, 0);
+        Instant end = start.plus(30, ChronoUnit.MINUTES);
+        BookAppointmentRequest bookReq = new BookAppointmentRequest(
+                patient1.getId(), doctor.getId(), branch.getId(),
+                start, end, AppointmentType.IN_PERSON, "Patient 1 Appointment"
+        );
+
+        String response = mockMvc.perform(post("/api/appointments")
+                        .header("Authorization", adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookReq)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long apptId = objectMapper.readTree(response).get("id").asLong();
+
+        // Patient 2 attempts to view Patient 1's appointment -> 403 Forbidden
+        mockMvc.perform(get("/api/appointments/" + apptId)
+                        .header("Authorization", patient2Token))
+                .andExpect(status().isForbidden());
+
+        // Patient 2 attempts to cancel Patient 1's appointment -> 403 Forbidden
+        CancelAppointmentRequest cancelReq = new CancelAppointmentRequest("Unauthorized cancel attempt");
+        mockMvc.perform(patch("/api/appointments/" + apptId + "/cancel")
+                        .header("Authorization", patient2Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(cancelReq)))
+                .andExpect(status().isForbidden());
+    }
 }
