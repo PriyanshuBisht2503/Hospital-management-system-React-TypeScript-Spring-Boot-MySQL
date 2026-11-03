@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ToastProvider } from '@hms/ui';
 import { DoctorSchedulePage } from '../pages/DoctorSchedulePage';
 import { useAuth } from '../context/AuthContext';
@@ -35,7 +35,9 @@ function renderPage(user: CurrentUser, entry: string) {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <MemoryRouter initialEntries={[entry]}>
-          <DoctorSchedulePage />
+          <Routes>
+            <Route path="/schedules/:doctorId" element={<DoctorSchedulePage />} />
+          </Routes>
         </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,

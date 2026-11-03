@@ -91,8 +91,15 @@ describe('ScheduleTemplateForm overlap check', () => {
   });
 
   it('does not flag non-overlapping validity windows', () => {
+    const bounded: DoctorSchedule[] = [{ ...existing[0], validTo: '2026-01-31' }];
+    expect(
+      findTemplateOverlap({ dayOfWeek: 'MONDAY', branchId: 1, startTime: '09:00', endTime: '12:00', validFrom: '2026-02-01', validTo: null }, bounded),
+    ).toBeNull();
+  });
+
+  it('flags two open-ended templates that overlap in time and validity', () => {
     expect(
       findTemplateOverlap({ dayOfWeek: 'MONDAY', branchId: 1, startTime: '09:00', endTime: '12:00', validFrom: '2026-02-01', validTo: null }, existing),
-    ).toBeNull();
+    ).toBeTruthy();
   });
 });
