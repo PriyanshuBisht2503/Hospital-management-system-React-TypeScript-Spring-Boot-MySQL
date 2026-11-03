@@ -2,6 +2,22 @@ export type Role = 'ADMIN' | 'DOCTOR' | 'RECEPTIONIST' | 'PATIENT';
 
 export type StaffRole = 'ADMIN' | 'DOCTOR' | 'RECEPTIONIST';
 
+/**
+ * The authenticated user returned by login, refresh, and GET /api/auth/me.
+ * Mirrors the backend `UserSummaryDto`, including the Phase 2 `doctorId`
+ * field which is populated only for DOCTOR users and null otherwise.
+ */
+export interface CurrentUser {
+  id: number;
+  email: string;
+  phone: string | null;
+  role: Role;
+  fullName: string;
+  enabled: boolean;
+  doctorId: number | null;
+}
+
+/** Admin user-list row (mirrors the backend `UserDto`). */
 export interface User {
   id: number;
   email: string;
@@ -17,7 +33,7 @@ export interface AuthResponse {
   accessToken: string;
   tokenType: string;
   expiresInMs: number;
-  user: User;
+  user: CurrentUser;
 }
 
 export interface ApiErrorResponse {
@@ -44,4 +60,3 @@ export class ApiError extends Error {
     this.retryAfterSeconds = retryAfterSeconds;
   }
 }
-

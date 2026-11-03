@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Role, AuthResponse, ApiError } from '../types/auth';
+import { CurrentUser, Role, AuthResponse, ApiError } from '../types/auth';
 import { apiRequest, setSessionExpiredHandler, refreshAuthToken } from '../api/client';
 import { setAccessToken, clearAccessToken } from '../api/tokenStore';
 
 const STAFF_ROLES: Role[] = ['ADMIN', 'DOCTOR', 'RECEPTIONIST'];
 
 interface AuthContextType {
-  user: User | null;
+  user: CurrentUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   authError: string | null;
@@ -18,7 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const restoreAttemptedRef = React.useRef(false);
