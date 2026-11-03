@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   IST_OFFSET_MINUTES,
   endOfIstDayUtc,
+  formatIstDateTime,
   istTimeToUtc,
   startOfIstDayUtc,
   toIstDateString,
@@ -37,5 +38,9 @@ describe('time.ts: IST day-range to UTC instants', () => {
     expect(toIstDateString('2026-11-02T18:30:00.000Z')).toBe('2026-11-03');
     expect(toIstDateString('2026-11-03T17:59:59.000Z')).toBe('2026-11-03');
     expect(toIstDateString('2026-11-03T18:30:00.000Z')).toBe('2026-11-04');
+  });
+
+  it('formatIstDateTime renders a UTC instant as IST local time', () => {
+    expect(formatIstDateTime('2026-11-03T04:00:00.000Z')).toBe('2026-11-03 09:30 IST');
   });
 });

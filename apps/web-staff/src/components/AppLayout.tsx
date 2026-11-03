@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getPhase2Nav } from '../lib/navigation';
 import { SidebarLayout, NavItem } from '@hms/ui';
 import {
   LayoutDashboard,
@@ -22,6 +23,16 @@ export const AppLayout: React.FC = () => {
 
   const currentPath = location.pathname;
 
+  // Phase 2 pages that exist so far (only Patients is wired until the other pages land).
+  const phase2Nav: NavItem[] = getPhase2Nav(user.role, user.doctorId)
+    .filter((item) => item.href === '/patients')
+    .map((item) => ({
+      label: item.label,
+      href: item.href,
+      icon: <Users size={18} />,
+      active: currentPath.startsWith('/patients'),
+    }));
+
   let navItems: NavItem[] = [];
 
   if (user.role === 'ADMIN') {
@@ -32,6 +43,7 @@ export const AppLayout: React.FC = () => {
         icon: <LayoutDashboard size={18} />,
         active: currentPath === '/dashboard' || currentPath === '/',
       },
+      ...phase2Nav,
       {
         label: 'Users',
         href: '/users',
@@ -84,6 +96,7 @@ export const AppLayout: React.FC = () => {
         icon: <LayoutDashboard size={18} />,
         active: currentPath === '/dashboard' || currentPath === '/',
       },
+      ...phase2Nav,
     ];
   }
 

@@ -12,6 +12,10 @@ import { RoomsPage } from './pages/RoomsPage';
 import { UsersPage } from './pages/UsersPage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
+import { PatientsPage } from './pages/PatientsPage';
+import { NewPatientPage } from './pages/NewPatientPage';
+import { PatientDetailPage } from './pages/PatientDetailPage';
+import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES } from './lib/access';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -40,6 +44,19 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                </Route>
+              </Route>
+
+              {/* Patients (Phase 2): directory + profile for staff; create for ADMIN/RECEPTIONIST */}
+              <Route element={<ProtectedRoute allowedRoles={PATIENT_CREATE_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/patients/new" element={<NewPatientPage />} />
+                </Route>
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={PATIENT_DIRECTORY_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/patients" element={<PatientsPage />} />
+                  <Route path="/patients/:id" element={<PatientDetailPage />} />
                 </Route>
               </Route>
 

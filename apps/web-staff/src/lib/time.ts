@@ -39,3 +39,11 @@ export function toIstDateString(instant: string | Date): string {
   const day = String(ist.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/** Formats a UTC instant as "YYYY-MM-DD HH:mm IST". */
+export function formatIstDateTime(instant: string): string {
+  const d = new Date(instant);
+  const ist = new Date(d.getTime() + IST_OFFSET_MINUTES * MS_PER_MINUTE);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())} IST`;
+}
