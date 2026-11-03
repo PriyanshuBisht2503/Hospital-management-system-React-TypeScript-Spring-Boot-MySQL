@@ -82,7 +82,8 @@ describe('schedules: role behaviour', () => {
   it('a RECEPTIONIST sees no edit controls', async () => {
     stubScheduleFetch();
     renderPage(receptionist, '/schedules/42');
-    await screen.findByRole('heading', { name: 'Weekly Templates' });
+    await screen.findByText(/monday/i);
+    await screen.findByText(/Annual leave/i);
 
     expect(screen.queryByRole('button', { name: /Add Template/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Add Exception/i })).toBeNull();
@@ -94,7 +95,8 @@ describe('schedules: role behaviour', () => {
   it('an ADMIN sees the edit controls', async () => {
     stubScheduleFetch();
     renderPage(admin, '/schedules/42');
-    await screen.findByRole('heading', { name: 'Weekly Templates' });
+    await screen.findByText(/monday/i);
+    await screen.findByText(/Annual leave/i);
 
     expect(screen.getByRole('button', { name: /Add Template/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Add Exception/i })).toBeTruthy();
@@ -106,7 +108,8 @@ describe('schedules: role behaviour', () => {
   it('a DOCTOR on their own page sees read-only templates but can add exceptions', async () => {
     stubScheduleFetch();
     renderPage(doctor(42), '/schedules/42');
-    await screen.findByRole('heading', { name: 'Weekly Templates' });
+    await screen.findByText(/monday/i);
+    await screen.findByText(/Annual leave/i);
 
     expect(screen.queryByRole('button', { name: /Add Template/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit template/i })).toBeNull();
