@@ -9,16 +9,22 @@ public record UserSummaryDto(
     String phone,
     Role role,
     String fullName,
-    boolean enabled
+    boolean enabled,
+    Long doctorId
 ) {
     public static UserSummaryDto fromEntity(User user) {
+        return fromEntity(user, null);
+    }
+
+    public static UserSummaryDto fromEntity(User user, Long doctorId) {
         return new UserSummaryDto(
             user.getId(),
             user.getEmail(),
             user.getPhone(),
             user.getRole(),
             user.getFullName(),
-            user.isEnabled()
+            user.isEnabled(),
+            doctorId
         );
     }
 }

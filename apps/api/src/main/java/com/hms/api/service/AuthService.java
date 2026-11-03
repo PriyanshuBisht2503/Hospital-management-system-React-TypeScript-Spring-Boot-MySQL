@@ -1,5 +1,6 @@
 package com.hms.api.service;
 
+import com.hms.api.domain.Doctor;
 import com.hms.api.domain.OtpCode;
 import com.hms.api.domain.Patient;
 import com.hms.api.domain.PasswordResetToken;
@@ -9,6 +10,7 @@ import com.hms.api.domain.User;
 import com.hms.api.dto.*;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.InvalidTokenException;
+import com.hms.api.repository.DoctorRepository;
 import com.hms.api.repository.OtpCodeRepository;
 import com.hms.api.repository.PatientRepository;
 import com.hms.api.repository.PasswordResetTokenRepository;
@@ -51,6 +53,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PatientRepository patientRepository;
+    private final DoctorRepository doctorRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
@@ -76,7 +79,8 @@ public class AuthService {
         AuditLogService auditLogService,
         ClientIpResolver clientIpResolver,
         RateLimiterService rateLimiterService,
-        EmailService emailService
+        EmailService emailService,
+        DoctorRepository doctorRepository
     ) {
         this.userRepository = userRepository;
         this.patientRepository = patientRepository;
@@ -89,6 +93,7 @@ public class AuthService {
         this.clientIpResolver = clientIpResolver;
         this.rateLimiterService = rateLimiterService;
         this.emailService = emailService;
+        this.doctorRepository = doctorRepository;
     }
 
     /**
@@ -176,7 +181,7 @@ public class AuthService {
         return AuthResponse.of(
             accessToken,
             tokenProvider.getAccessTokenExpirationMs() / 1000,
-            UserSummaryDto.fromEntity(user)
+            UserSummaryDto.fromEntity(user, resolveDoctorId(user))
         );
     }
 
@@ -551,7 +556,7 @@ public class AuthService {
         return AuthResponse.of(
             newAccessToken,
             tokenProvider.getAccessTokenExpirationMs() / 1000,
-            UserSummaryDto.fromEntity(user)
+            UserSummaryDto.fromEntity(user, resolveDoctorId(user))
         );
     }
 
@@ -592,7 +597,14 @@ public class AuthService {
             throw new InvalidTokenException("User account is inactive or locked");
         }
 
-        return UserSummaryDto.fromEntity(user);
+        return UserSummaryDto.fromEntity(user, resolveDoctorId(user));
+    }
+
+    private Long resolveDoctorId(User user) {
+        if (user.getRole() == Role.DOCTOR) {
+            return doctorRepository.findByUserId(user.getId()).map(Doctor::getId).orElse(null);
+        }
+        return null;
     }
 
     public static String extractCookie(HttpServletRequest request, String name) {
