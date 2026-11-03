@@ -24,16 +24,17 @@ export const AppLayout: React.FC = () => {
 
   const currentPath = location.pathname;
 
-  // Phase 2 pages that exist so far (Patients + Schedules; the rest stay hidden until built).
+  // Phase 2 pages that exist so far (Patients + Appointments + Schedules; the rest stay hidden until built).
   const phase2Nav: NavItem[] = getPhase2Nav(user.role, user.doctorId)
-    .filter((item) => item.href === '/patients' || item.href === '/schedules' || item.href.startsWith('/schedules/'))
+    .filter((item) => item.href === '/patients' || item.href === '/appointments' || item.href === '/schedules' || item.href.startsWith('/schedules/'))
     .map((item) => {
       const isSchedule = item.href === '/schedules' || item.href.startsWith('/schedules/');
+      const isAppointments = item.href === '/appointments';
       return {
         label: item.label,
         href: item.href,
-        icon: isSchedule ? <Calendar size={18} /> : <Users size={18} />,
-        active: isSchedule ? currentPath.startsWith('/schedules') : currentPath.startsWith('/patients'),
+        icon: isSchedule || isAppointments ? <Calendar size={18} /> : <Users size={18} />,
+        active: isSchedule ? currentPath.startsWith('/schedules') : isAppointments ? currentPath.startsWith('/appointments') : currentPath.startsWith('/patients'),
       };
     });
 

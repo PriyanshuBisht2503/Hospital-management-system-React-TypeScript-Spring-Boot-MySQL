@@ -8,3 +8,9 @@ export const PATIENT_CREATE_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST'];
 
 /** Roles that may open the schedule pages (backend GET /api/admin/doctors/{id}/schedules). */
 export const SCHEDULE_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST', 'DOCTOR'];
+
+/** Roles that may view the appointment list and detail. */
+export const APPOINTMENT_VIEW_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST', 'DOCTOR'];
+
+/** Roles that may create an appointment (booking wizard). */
+export const APPOINTMENT_CREATE_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST'];

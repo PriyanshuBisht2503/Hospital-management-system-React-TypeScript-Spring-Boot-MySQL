@@ -13,7 +13,7 @@ export interface StaffNavItem {
  */
 export const PHASE_2_NAV_ITEMS: StaffNavItem[] = [
   { label: 'Patients', href: '/patients', roles: ['ADMIN', 'RECEPTIONIST', 'DOCTOR'] },
-  { label: 'Appointments', href: '/appointments', roles: ['ADMIN', 'RECEPTIONIST'] },
+  { label: 'Appointments', href: '/appointments', roles: ['ADMIN', 'RECEPTIONIST', 'DOCTOR'] },
   { label: 'Schedules', href: '/schedules', roles: ['ADMIN', 'RECEPTIONIST'] },
   { label: 'Day Agenda', href: '/day-agenda', roles: ['ADMIN', 'RECEPTIONIST'] },
   { label: 'My Day', href: '/my-day', roles: ['DOCTOR'] },

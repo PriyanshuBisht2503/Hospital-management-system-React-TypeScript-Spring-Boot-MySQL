@@ -17,7 +17,10 @@ import { NewPatientPage } from './pages/NewPatientPage';
 import { PatientDetailPage } from './pages/PatientDetailPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { DoctorSchedulePage } from './pages/DoctorSchedulePage';
-import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES, SCHEDULE_ROLES } from './lib/access';
+import { AppointmentsPage } from './pages/AppointmentsPage';
+import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
+import { BookingWizardPage } from './pages/BookingWizardPage';
+import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES, SCHEDULE_ROLES, APPOINTMENT_VIEW_ROLES, APPOINTMENT_CREATE_ROLES } from './lib/access';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -67,6 +70,19 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/schedules" element={<SchedulesPage />} />
                   <Route path="/schedules/:doctorId" element={<DoctorSchedulePage />} />
+                </Route>
+              </Route>
+
+              {/* Appointments (Phase 2): list + detail + booking wizard */}
+              <Route element={<ProtectedRoute allowedRoles={APPOINTMENT_CREATE_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/appointments/new" element={<BookingWizardPage />} />
+                </Route>
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={APPOINTMENT_VIEW_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/appointments" element={<AppointmentsPage />} />
+                  <Route path="/appointments/:id" element={<AppointmentDetailPage />} />
                 </Route>
               </Route>
 

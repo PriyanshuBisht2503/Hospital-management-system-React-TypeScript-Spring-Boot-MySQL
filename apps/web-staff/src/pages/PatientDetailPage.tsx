@@ -74,10 +74,17 @@ export const PatientDetailPage: React.FC = () => {
 
   return (
     <div>
-      <Button variant="outline" size="sm" onClick={() => navigate('/patients')} style={{ marginBottom: '16px' }}>
-        <ArrowLeft size={14} />
-        Back to Patients
-      </Button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+        <Button variant="outline" size="sm" onClick={() => navigate('/patients')}>
+          <ArrowLeft size={14} />
+          Back to Patients
+        </Button>
+        {(role === 'ADMIN' || role === 'RECEPTIONIST') && (
+          <Button variant="primary" size="sm" onClick={() => navigate(`/appointments/new?patientId=${patient.id}`)}>
+            Book Appointment
+          </Button>
+        )}
+      </div>
 
       <Card style={{ padding: '24px', marginBottom: '20px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>{patient.fullName}</h1>

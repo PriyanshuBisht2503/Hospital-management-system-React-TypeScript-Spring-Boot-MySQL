@@ -70,6 +70,7 @@ export interface AppointmentFilters {
   branchId?: number;
   status?: AppointmentStatus;
   patientId?: number;
+  needsRescheduling?: boolean;
   from?: string;
   to?: string;
   page?: number;
