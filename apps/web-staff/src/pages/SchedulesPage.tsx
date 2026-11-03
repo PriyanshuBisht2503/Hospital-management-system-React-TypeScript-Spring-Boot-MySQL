@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +17,7 @@ interface ScheduleDoctorRow {
 }
 
 export const SchedulesPage: React.FC = () => {
+  useDocumentTitle('Schedules');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [page, setPage] = useState(0);

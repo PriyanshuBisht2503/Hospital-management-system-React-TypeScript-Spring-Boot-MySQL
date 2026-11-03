@@ -14,3 +14,9 @@ export const APPOINTMENT_VIEW_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST', 'DOCTOR'
 
 /** Roles that may create an appointment (booking wizard). */
 export const APPOINTMENT_CREATE_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST'];
+
+/** Roles that may open their own "My Day" agenda. */
+export const MY_DAY_ROLES: Role[] = ['DOCTOR'];
+
+/** Roles that may open the day agenda for any doctor. */
+export const DAY_AGENDA_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST'];

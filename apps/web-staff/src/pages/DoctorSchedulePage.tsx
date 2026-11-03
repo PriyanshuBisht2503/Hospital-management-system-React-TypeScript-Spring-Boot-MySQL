@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ import {
   deleteScheduleException,
 } from '../api/schedules';
 import { ApiError } from '../types/auth';
+import { toIstDateString } from '../lib/time';
 import type { DayOfWeek, DoctorSchedule, ScheduleException, CreateScheduleExceptionRequest } from '../types/schedule';
 import { Button, Card, Modal, ConfirmDialog, Badge, useToast } from '@hms/ui';
 import { ScheduleTemplateForm, ScheduleTemplateFormData } from '../components/ScheduleTemplateForm';
@@ -25,6 +27,7 @@ const DAYS_OF_WEEK: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
 const typeLabel = (t: ScheduleException['type']) => (t === 'EXTRA_HOURS' ? 'Extra hours' : t === 'LEAVE' ? 'Leave' : 'Holiday');
 
 export const DoctorSchedulePage: React.FC = () => {
+  useDocumentTitle('Schedule');
   const { doctorId } = useParams<{ doctorId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -199,7 +202,7 @@ export const DoctorSchedulePage: React.FC = () => {
     }
   };
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toIstDateString(new Date());
   const sortedExceptions = [...exceptions].sort((a, b) => a.date.localeCompare(b.date));
   const upcoming = sortedExceptions.filter((e) => e.date >= today);
   const past = sortedExceptions.filter((e) => e.date < today).reverse();

@@ -20,7 +20,9 @@ import { DoctorSchedulePage } from './pages/DoctorSchedulePage';
 import { AppointmentsPage } from './pages/AppointmentsPage';
 import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
 import { BookingWizardPage } from './pages/BookingWizardPage';
-import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES, SCHEDULE_ROLES, APPOINTMENT_VIEW_ROLES, APPOINTMENT_CREATE_ROLES } from './lib/access';
+import { MyDayPage } from './pages/MyDayPage';
+import { DayAgendaPage } from './pages/DayAgendaPage';
+import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES, SCHEDULE_ROLES, APPOINTMENT_VIEW_ROLES, APPOINTMENT_CREATE_ROLES, MY_DAY_ROLES, DAY_AGENDA_ROLES } from './lib/access';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -83,6 +85,18 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/appointments" element={<AppointmentsPage />} />
                   <Route path="/appointments/:id" element={<AppointmentDetailPage />} />
+                </Route>
+              </Route>
+
+              {/* Day views (Phase 2): doctor My Day + staff day agenda */}
+              <Route element={<ProtectedRoute allowedRoles={MY_DAY_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/my-day" element={<MyDayPage />} />
+                </Route>
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={DAY_AGENDA_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/day-agenda" element={<DayAgendaPage />} />
                 </Route>
               </Route>
 

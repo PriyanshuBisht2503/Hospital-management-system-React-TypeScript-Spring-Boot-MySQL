@@ -9,6 +9,7 @@ import { PatientSearch } from '../components/PatientSearch';
 import { SlotPicker } from '../components/SlotPicker';
 import { formatIstDateTime, toIstDateString } from '../lib/time';
 import { VISIBLE_APPOINTMENT_TYPES } from '../types/appointment';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { Button, Card, Input, Select, useToast } from '@hms/ui';
 import type { Patient } from '../types/patient';
 import type { DoctorSearchResult, AvailableSlot } from '../types/doctor';
@@ -24,6 +25,10 @@ export const BookingWizardPage: React.FC = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const preselectedPatientId = searchParams.get('patientId') ? Number(searchParams.get('patientId')) : undefined;
+  const preselectedDoctorId = searchParams.get('doctorId') ? Number(searchParams.get('doctorId')) : undefined;
+  const preselectedBranchId = searchParams.get('branchId') ? Number(searchParams.get('branchId')) : undefined;
+  const preselectedDate = searchParams.get('date') ?? '';
+  useDocumentTitle('Book Appointment');
 
   const [step, setStep] = useState(0);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -51,6 +56,16 @@ export const BookingWizardPage: React.FC = () => {
   }, [preselectedQuery.data, patient]);
 
   const doctorsQuery = useQuery({ queryKey: ['booking-doctors'], queryFn: () => searchDoctors({ size: 100 }) });
+
+  // Preselect doctor/branch/date when opened from the day agenda "Book" link.
+  React.useEffect(() => {
+    if (doctor || !doctorsQuery.data || preselectedDoctorId == null) return;
+    const found = doctorsQuery.data.content.find((d) => d.id === preselectedDoctorId);
+    if (!found) return;
+    setDoctor(found);
+    if (preselectedBranchId) setBranchId(preselectedBranchId);
+    if (preselectedDate) setDate(preselectedDate);
+  }, [doctor, doctorsQuery.data, preselectedDoctorId, preselectedBranchId, preselectedDate]);
 
   const bookMutation = useMutation({ mutationFn: (body: Parameters<typeof bookAppointment>[0]) => bookAppointment(body) });
 
@@ -102,7 +117,7 @@ export const BookingWizardPage: React.FC = () => {
 
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <PatientSearch placeholder="Search patient..." onSelect={(p) => { setPatient(p); setStep(1); }} />
+            <PatientSearch placeholder="Search patient..." onSelect={(p) => { setPatient(p); setStep(doctor ? 3 : 1); }} />
             <Link to="/patients/new?returnTo=/appointments/new">Create a new walk-in patient</Link>
             {patient && <div style={{ fontSize: '14px' }}>Selected: <strong>{patient.fullName}</strong></div>}
           </div>

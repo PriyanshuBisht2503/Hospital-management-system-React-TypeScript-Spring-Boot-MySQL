@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +27,7 @@ const STATUS_OPTIONS = [
 ];
 
 export const AppointmentsPage: React.FC = () => {
+  useDocumentTitle('Appointments');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

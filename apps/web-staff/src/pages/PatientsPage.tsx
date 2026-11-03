@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,7 @@ import {
 import { Search, Plus, Eye } from 'lucide-react';
 
 export const PatientsPage: React.FC = () => {
+  useDocumentTitle('Patients');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [page, setPage] = useState(0);

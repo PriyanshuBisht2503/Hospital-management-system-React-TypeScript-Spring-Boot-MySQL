@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -51,6 +52,7 @@ const GENDER_OPTIONS = [
 ];
 
 export const NewPatientPage: React.FC = () => {
+  useDocumentTitle('New Patient');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();

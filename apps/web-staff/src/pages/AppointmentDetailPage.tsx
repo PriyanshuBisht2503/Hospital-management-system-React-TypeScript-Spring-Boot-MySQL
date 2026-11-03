@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ import { ArrowLeft, AlertTriangle, CalendarClock } from 'lucide-react';
 const fmt = (v: string | null) => (v ? formatIstDateTime(v) : '—');
 
 export const AppointmentDetailPage: React.FC = () => {
+  useDocumentTitle('Appointment');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();

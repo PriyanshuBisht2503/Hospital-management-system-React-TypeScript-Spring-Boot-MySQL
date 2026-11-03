@@ -47,3 +47,19 @@ export function formatIstDateTime(instant: string): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())} IST`;
 }
+
+/** Formats a UTC instant as "HH:mm" in IST. */
+export function formatIstTime(instant: string): string {
+  const d = new Date(instant);
+  const ist = new Date(d.getTime() + IST_OFFSET_MINUTES * MS_PER_MINUTE);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}`;
+}
+
+/** Adds (or subtracts) whole days to an IST calendar date (YYYY-MM-DD). */
+export function addIstDays(date: string, days: number): string {
+  const [year, month, day] = parseDate(date);
+  const dt = new Date(Date.UTC(year, month - 1, day + days));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}

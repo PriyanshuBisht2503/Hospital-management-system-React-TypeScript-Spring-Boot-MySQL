@@ -13,6 +13,7 @@ import {
   UserCheck,
   FileText,
   Calendar,
+  Clock,
 } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
@@ -24,17 +25,19 @@ export const AppLayout: React.FC = () => {
 
   const currentPath = location.pathname;
 
-  // Phase 2 pages that exist so far (Patients + Appointments + Schedules; the rest stay hidden until built).
+  // All Phase 2 pages are live now.
   const phase2Nav: NavItem[] = getPhase2Nav(user.role, user.doctorId)
-    .filter((item) => item.href === '/patients' || item.href === '/appointments' || item.href === '/schedules' || item.href.startsWith('/schedules/'))
+    .filter((item) => item.href === '/patients' || item.href === '/appointments' || item.href === '/schedules' || item.href.startsWith('/schedules/') || item.href === '/my-day' || item.href === '/day-agenda')
     .map((item) => {
       const isSchedule = item.href === '/schedules' || item.href.startsWith('/schedules/');
       const isAppointments = item.href === '/appointments';
+      const isMyDay = item.href === '/my-day';
+      const isAgenda = item.href === '/day-agenda';
       return {
         label: item.label,
         href: item.href,
-        icon: isSchedule || isAppointments ? <Calendar size={18} /> : <Users size={18} />,
-        active: isSchedule ? currentPath.startsWith('/schedules') : isAppointments ? currentPath.startsWith('/appointments') : currentPath.startsWith('/patients'),
+        icon: isMyDay ? <Clock size={18} /> : isSchedule || isAppointments || isAgenda ? <Calendar size={18} /> : <Users size={18} />,
+        active: isSchedule ? currentPath.startsWith('/schedules') : isAppointments ? currentPath.startsWith('/appointments') : isAgenda ? currentPath.startsWith('/day-agenda') : isMyDay ? currentPath.startsWith('/my-day') : currentPath.startsWith('/patients'),
       };
     });
 
