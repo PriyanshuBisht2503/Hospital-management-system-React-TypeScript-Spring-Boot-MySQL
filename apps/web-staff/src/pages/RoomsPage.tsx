@@ -209,10 +209,14 @@ export const RoomsPage: React.FC = () => {
       return;
     }
 
-    if (editingRoom) {
-      await updateMutation.mutateAsync({ id: editingRoom.id, data: formData });
-    } else {
-      await createMutation.mutateAsync(formData);
+    try {
+      if (editingRoom) {
+        await updateMutation.mutateAsync({ id: editingRoom.id, data: formData });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+    } catch {
+      // Handled in the mutation's onError (field errors + general message).
     }
   };
 

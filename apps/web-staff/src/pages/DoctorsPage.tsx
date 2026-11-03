@@ -304,7 +304,11 @@ export const DoctorsPage: React.FC = () => {
       branchIds: selectedBranchIds,
     };
 
-    await createMutation.mutateAsync(payload);
+    try {
+      await createMutation.mutateAsync(payload);
+    } catch {
+      // Handled in the mutation's onError (field errors + general message).
+    }
   };
 
   const onEditSubmit = async (formData: DoctorEditFormData) => {
@@ -325,7 +329,11 @@ export const DoctorsPage: React.FC = () => {
     };
 
     if (editingDoctor) {
-      await updateMutation.mutateAsync({ id: editingDoctor.id, payload });
+      try {
+        await updateMutation.mutateAsync({ id: editingDoctor.id, payload });
+      } catch {
+        // Handled in the mutation's onError (field errors + general message).
+      }
     }
   };
 

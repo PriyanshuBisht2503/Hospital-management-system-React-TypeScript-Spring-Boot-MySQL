@@ -175,10 +175,14 @@ export const DepartmentsPage: React.FC = () => {
       return;
     }
 
-    if (editingDept) {
-      await updateMutation.mutateAsync({ id: editingDept.id, data: formData });
-    } else {
-      await createMutation.mutateAsync(formData);
+    try {
+      if (editingDept) {
+        await updateMutation.mutateAsync({ id: editingDept.id, data: formData });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+    } catch {
+      // Handled in the mutation's onError (field errors + general message).
     }
   };
 

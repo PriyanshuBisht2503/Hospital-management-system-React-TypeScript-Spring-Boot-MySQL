@@ -184,10 +184,14 @@ export const BranchesPage: React.FC = () => {
       return;
     }
 
-    if (editingBranch) {
-      await updateMutation.mutateAsync({ id: editingBranch.id, data: formData });
-    } else {
-      await createMutation.mutateAsync(formData);
+    try {
+      if (editingBranch) {
+        await updateMutation.mutateAsync({ id: editingBranch.id, data: formData });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+    } catch {
+      // Handled in the mutation's onError (field errors + general message).
     }
   };
 

@@ -97,7 +97,11 @@ export const NewPatientPage: React.FC = () => {
       }
       return;
     }
-    await mutation.mutateAsync(validation.data);
+    try {
+      await mutation.mutateAsync(validation.data);
+    } catch {
+      // Handled in the mutation's onError (field errors + general message).
+    }
   };
 
   return (

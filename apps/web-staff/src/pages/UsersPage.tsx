@@ -176,7 +176,11 @@ export const UsersPage: React.FC = () => {
       return;
     }
 
-    await createMutation.mutateAsync(formData);
+    try {
+      await createMutation.mutateAsync(formData);
+    } catch {
+      // Handled in the mutation's onError (field errors + general message).
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
