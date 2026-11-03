@@ -108,6 +108,27 @@ describe('appointments: list filters and badge', () => {
     expect(params.get('from')).toBe(startOfIstDayUtc(today));
     expect(params.get('to')).toBeNull();
   });
+
+  it('the "Needs rescheduling" shortcut applies the filter', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.startsWith('/api/appointments')) { urls.push(url); return json(emptyPage); }
+      if (url.startsWith('/api/doctors/search')) return json(emptyPage);
+      if (url.startsWith('/api/branches')) return json(emptyPage);
+      return new Response('Not Found', { status: 404 });
+    }));
+
+    renderRoute(admin, '/appointments', '/appointments', <AppointmentsPage />);
+
+    await waitFor(() => expect(urls.length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Needs rescheduling' }));
+
+    await waitFor(() => {
+      const last = urls[urls.length - 1];
+      expect(searchParamsOf(last).get('needsRescheduling')).toBe('true');
+    });
+  });
 });
 
 describe('patient detail: book appointment button', () => {

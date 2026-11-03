@@ -75,12 +75,17 @@ export const AppointmentsPage: React.FC = () => {
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>Appointments</h1>
           <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Search and review appointments</p>
         </div>
-        {canCreate && (
-          <Button variant="primary" size="md" onClick={() => navigate('/appointments/new')}>
-            <Plus size={16} />
-            New Appointment
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button variant="outline" size="sm" onClick={() => setParam('needsRescheduling', 'true')}>
+            Needs rescheduling
           </Button>
-        )}
+          {canCreate && (
+            <Button variant="primary" size="md" onClick={() => navigate('/appointments/new')}>
+              <Plus size={16} />
+              New Appointment
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card style={{ marginBottom: '20px', padding: '16px' }}>
