@@ -90,6 +90,7 @@ public class AppointmentController {
             @RequestParam(required = false) Long doctorId,
             @RequestParam(required = false) Long branchId,
             @RequestParam(required = false) AppointmentStatus status,
+            @RequestParam(required = false) Boolean needsRescheduling,
             @RequestParam(required = false) Long patientId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
@@ -98,7 +99,7 @@ public class AppointmentController {
             @AuthenticationPrincipal SecurityUser currentUser
     ) {
         return ResponseEntity.ok(lifecycleService.getAppointments(
-                doctorId, branchId, status, patientId, from, to, page, size, currentUser
+                doctorId, branchId, status, needsRescheduling, patientId, from, to, page, size, currentUser
         ));
     }
 

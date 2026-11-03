@@ -90,11 +90,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
            "(:status IS NULL OR a.status = :status) AND " +
            "(:patientId IS NULL OR a.patient.id = :patientId) AND " +
            "(:from IS NULL OR a.startTime >= :from) AND " +
-           "(:to IS NULL OR a.startTime <= :to)")
+           "(:to IS NULL OR a.startTime <= :to) AND " +
+           "(:needsRescheduling IS NULL OR a.needsRescheduling = :needsRescheduling)")
     Page<Appointment> searchAppointments(
             @Param("doctorId") Long doctorId,
             @Param("branchId") Long branchId,
             @Param("status") AppointmentStatus status,
+            @Param("needsRescheduling") Boolean needsRescheduling,
             @Param("patientId") Long patientId,
             @Param("from") Instant from,
             @Param("to") Instant to,
