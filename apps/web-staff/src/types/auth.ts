@@ -24,7 +24,7 @@ export interface User {
   fullName: string;
   phone: string;
   role: Role;
-  isActive: boolean;
+  enabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,7 +32,7 @@ export interface User {
 export interface AuthResponse {
   accessToken: string;
   tokenType: string;
-  expiresInMs: number;
+  expiresIn: number;
   user: CurrentUser;
 }
 

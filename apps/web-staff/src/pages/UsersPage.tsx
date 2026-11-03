@@ -24,6 +24,7 @@ import {
   DEFAULT_PAGE_SIZE,
 } from '@hms/ui';
 import { Search, Plus, ShieldAlert, UserCog, Power } from 'lucide-react';
+import { UserStatusBadge } from '../components/UserStatusBadge';
 
 const createStaffSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
@@ -128,13 +129,13 @@ export const UsersPage: React.FC = () => {
 
   // Enable / Disable Status Mutation
   const toggleStatusMutation = useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) =>
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
       apiRequest<User>(`/api/admin/users/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ active }),
+        body: JSON.stringify({ enabled }),
       }),
     onSuccess: (updated) => {
-      toast.success(`${updated.fullName} is now ${updated.isActive ? 'Active' : 'Disabled'}`);
+      toast.success(`${updated.fullName} is now ${updated.enabled ? 'Active' : 'Disabled'}`);
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setStatusChangeUser(null);
     },
@@ -316,11 +317,7 @@ export const UsersPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {user.isActive ? (
-                        <Badge variant="success">Active</Badge>
-                      ) : (
-                        <Badge variant="neutral">Disabled</Badge>
-                      )}
+                      <UserStatusBadge enabled={user.enabled} />
                     </TableCell>
                     <TableCell style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '8px' }}>
@@ -340,10 +337,10 @@ export const UsersPage: React.FC = () => {
                         )}
 
                         <Button
-                          variant={user.isActive ? 'danger' : 'outline'}
+                          variant={user.enabled ? 'danger' : 'outline'}
                           size="sm"
                           onClick={() => setStatusChangeUser(user)}
-                          title={user.isActive ? 'Disable account' : 'Enable account'}
+                          title={user.enabled ? 'Disable account' : 'Enable account'}
                         >
                           <Power size={14} />
                         </Button>
@@ -483,20 +480,20 @@ export const UsersPage: React.FC = () => {
       {/* Enable / Disable Confirm Dialog */}
       <ConfirmDialog
         isOpen={!!statusChangeUser}
-        title={statusChangeUser?.isActive ? 'Disable User Account' : 'Enable User Account'}
+        title={statusChangeUser?.enabled ? 'Disable User Account' : 'Enable User Account'}
         message={
-          statusChangeUser?.isActive
+          statusChangeUser?.enabled
             ? `Are you sure you want to disable ${statusChangeUser.fullName}? This will revoke all active refresh tokens and immediately prevent them from logging in.`
             : `Are you sure you want to re-enable access for ${statusChangeUser?.fullName}?`
         }
-        confirmLabel={statusChangeUser?.isActive ? 'Disable Account' : 'Enable Account'}
-        variant={statusChangeUser?.isActive ? 'danger' : 'primary'}
+        confirmLabel={statusChangeUser?.enabled ? 'Disable Account' : 'Enable Account'}
+        variant={statusChangeUser?.enabled ? 'danger' : 'primary'}
         isLoading={toggleStatusMutation.isPending}
         onConfirm={() => {
           if (statusChangeUser) {
             toggleStatusMutation.mutate({
               id: statusChangeUser.id,
-              active: !statusChangeUser.isActive,
+              enabled: !statusChangeUser.enabled,
             });
           }
         }}
