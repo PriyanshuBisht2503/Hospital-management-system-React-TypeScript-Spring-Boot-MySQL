@@ -84,9 +84,9 @@ describe('appointmentStatus: per-role action visibility', () => {
     expect(keys).toEqual(expect.arrayContaining(['CHECK_IN', 'NO_SHOW', 'CANCEL', 'RESCHEDULE']));
   });
 
-  it('a DOCTOR can start and complete a CHECKED_IN appointment', () => {
-    expect(getAllowedActions('CHECKED_IN', 'DOCTOR').map((a) => a.key)).toEqual(['START_CONSULTATION']);
-    expect(getAllowedActions('IN_CONSULTATION', 'DOCTOR').map((a) => a.key)).toEqual(['COMPLETE']);
+  it('a DOCTOR can start, complete and cancel at the right stages, and never check in or reschedule', () => {
+    expect(getAllowedActions('CHECKED_IN', 'DOCTOR').map((a) => a.key)).toEqual(['START_CONSULTATION', 'CANCEL']);
+    expect(getAllowedActions('IN_CONSULTATION', 'DOCTOR').map((a) => a.key)).toEqual(['COMPLETE', 'CANCEL']);
   });
 
   it('terminal statuses expose no actions to any role', () => {
