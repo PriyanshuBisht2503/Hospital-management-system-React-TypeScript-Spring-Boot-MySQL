@@ -12,6 +12,7 @@ import {
   DoorClosed,
   UserCheck,
   FileText,
+  Calendar,
 } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
@@ -23,15 +24,18 @@ export const AppLayout: React.FC = () => {
 
   const currentPath = location.pathname;
 
-  // Phase 2 pages that exist so far (only Patients is wired until the other pages land).
+  // Phase 2 pages that exist so far (Patients + Schedules; the rest stay hidden until built).
   const phase2Nav: NavItem[] = getPhase2Nav(user.role, user.doctorId)
-    .filter((item) => item.href === '/patients')
-    .map((item) => ({
-      label: item.label,
-      href: item.href,
-      icon: <Users size={18} />,
-      active: currentPath.startsWith('/patients'),
-    }));
+    .filter((item) => item.href === '/patients' || item.href === '/schedules' || item.href.startsWith('/schedules/'))
+    .map((item) => {
+      const isSchedule = item.href === '/schedules' || item.href.startsWith('/schedules/');
+      return {
+        label: item.label,
+        href: item.href,
+        icon: isSchedule ? <Calendar size={18} /> : <Users size={18} />,
+        active: isSchedule ? currentPath.startsWith('/schedules') : currentPath.startsWith('/patients'),
+      };
+    });
 
   let navItems: NavItem[] = [];
 

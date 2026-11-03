@@ -29,9 +29,9 @@ describe('navigation: role-based sidebar entries', () => {
     expect(items.find((i) => i.label === 'My Schedule')?.href).toBe('/schedules/42');
   });
 
-  it('DOCTOR My Schedule href falls back to /schedules/me when doctorId is unknown', () => {
+  it('DOCTOR My Schedule href falls back to /schedules when doctorId is unknown', () => {
     const items = getPhase2Nav('DOCTOR', null);
-    expect(items.find((i) => i.label === 'My Schedule')?.href).toBe('/schedules/me');
+    expect(items.find((i) => i.label === 'My Schedule')?.href).toBe('/schedules');
   });
 
   it('PATIENT sees no staff pages', () => {

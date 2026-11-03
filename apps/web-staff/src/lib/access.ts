@@ -5,3 +5,6 @@ export const PATIENT_DIRECTORY_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST', 'DOCTOR
 
 /** Roles that may create a patient (backend POST /api/patients). */
 export const PATIENT_CREATE_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST'];
+
+/** Roles that may open the schedule pages (backend GET /api/admin/doctors/{id}/schedules). */
+export const SCHEDULE_ROLES: Role[] = ['ADMIN', 'RECEPTIONIST', 'DOCTOR'];

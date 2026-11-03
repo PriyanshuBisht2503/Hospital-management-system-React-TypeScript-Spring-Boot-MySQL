@@ -15,7 +15,9 @@ import { AuditLogsPage } from './pages/AuditLogsPage';
 import { PatientsPage } from './pages/PatientsPage';
 import { NewPatientPage } from './pages/NewPatientPage';
 import { PatientDetailPage } from './pages/PatientDetailPage';
-import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES } from './lib/access';
+import { SchedulesPage } from './pages/SchedulesPage';
+import { DoctorSchedulePage } from './pages/DoctorSchedulePage';
+import { PATIENT_DIRECTORY_ROLES, PATIENT_CREATE_ROLES, SCHEDULE_ROLES } from './lib/access';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { ForbiddenPage } from './pages/ForbiddenPage';
@@ -57,6 +59,14 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/patients" element={<PatientsPage />} />
                   <Route path="/patients/:id" element={<PatientDetailPage />} />
+                </Route>
+              </Route>
+
+              {/* Schedules (Phase 2): list + per-doctor templates/exceptions */}
+              <Route element={<ProtectedRoute allowedRoles={SCHEDULE_ROLES} />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/schedules" element={<SchedulesPage />} />
+                  <Route path="/schedules/:doctorId" element={<DoctorSchedulePage />} />
                 </Route>
               </Route>
 

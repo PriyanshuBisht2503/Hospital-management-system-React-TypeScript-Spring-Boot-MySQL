@@ -8,8 +8,8 @@ export interface StaffNavItem {
 
 /**
  * Phase 2 staff navigation entries. `roles` is the set of roles that see the entry.
- * The DOCTOR "My Schedule" entry uses `/schedules/me` as a placeholder resolved
- * against the logged-in doctor's `doctorId` by `getPhase2Nav`.
+ * The DOCTOR "My Schedule" entry's href is resolved against the logged-in doctor's
+ * `doctorId` by `getPhase2Nav` (falling back to `/schedules` when none is linked).
  */
 export const PHASE_2_NAV_ITEMS: StaffNavItem[] = [
   { label: 'Patients', href: '/patients', roles: ['ADMIN', 'RECEPTIONIST', 'DOCTOR'] },
@@ -26,7 +26,7 @@ export function getPhase2Nav(role: Role, doctorId?: number | null): StaffNavItem
     .filter((item) => item.roles.includes(role))
     .map((item) =>
       item.href === '/schedules/me'
-        ? { ...item, href: doctorId != null ? `/schedules/${doctorId}` : item.href }
+        ? { ...item, href: doctorId != null ? `/schedules/${doctorId}` : '/schedules' }
         : item,
     );
 }
