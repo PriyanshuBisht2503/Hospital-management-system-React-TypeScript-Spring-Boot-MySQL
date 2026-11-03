@@ -87,7 +87,10 @@ export const BookingWizardPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '640px' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 16px' }}>Book Appointment</h1>
+      <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>Book Appointment</h1>
+      <div style={{ fontSize: '14px', color: '#334155', margin: '0 0 12px' }}>
+        Patient: <strong>{patient?.fullName ?? 'Not selected'}</strong>
+      </div>
       <Card style={{ padding: '24px' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
           {STEPS.map((label, i) => (

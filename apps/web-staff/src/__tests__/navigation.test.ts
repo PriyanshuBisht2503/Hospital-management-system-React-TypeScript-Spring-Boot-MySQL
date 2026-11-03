@@ -20,8 +20,8 @@ describe('navigation: role-based sidebar entries', () => {
     ]);
   });
 
-  it('DOCTOR sees Patients, My Day and their own schedule only', () => {
-    expect(getPhase2Nav('DOCTOR').map((i) => i.label)).toEqual(['Patients', 'My Day', 'My Schedule']);
+  it('DOCTOR sees Patients, Appointments, My Day and their own schedule', () => {
+    expect(getPhase2Nav('DOCTOR').map((i) => i.label)).toEqual(['Patients', 'Appointments', 'My Day', 'My Schedule']);
   });
 
   it('DOCTOR My Schedule href resolves to their own doctorId', () => {

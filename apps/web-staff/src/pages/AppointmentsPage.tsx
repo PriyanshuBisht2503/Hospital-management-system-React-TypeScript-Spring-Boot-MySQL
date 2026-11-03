@@ -7,7 +7,7 @@ import { searchDoctors } from '../api/doctors';
 import { listBranches } from '../api/branches';
 import { PatientSearch } from '../components/PatientSearch';
 import { StatusBadge } from '../components/StatusBadge';
-import { endOfIstDayUtc, formatIstDateTime, startOfIstDayUtc } from '../lib/time';
+import { endOfIstDayUtc, formatIstDateTime, startOfIstDayUtc, toIstDateString } from '../lib/time';
 import { Button, Card, Input, Select, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Pagination, DEFAULT_PAGE_SIZE } from '@hms/ui';
 import { Plus, Eye } from 'lucide-react';
 import type { Appointment, AppointmentStatus } from '../types/appointment';
@@ -32,7 +32,8 @@ export const AppointmentsPage: React.FC = () => {
   const isDoctor = user?.role === 'DOCTOR';
   const canCreate = user?.role === 'ADMIN' || user?.role === 'RECEPTIONIST';
 
-  const from = searchParams.get('from') ?? '';
+  const todayIst = toIstDateString(new Date());
+  const from = searchParams.get('from') ?? todayIst;
   const to = searchParams.get('to') ?? '';
   const doctorId = searchParams.get('doctorId') ? Number(searchParams.get('doctorId')) : undefined;
   const patientId = searchParams.get('patientId') ? Number(searchParams.get('patientId')) : undefined;
@@ -108,9 +109,7 @@ export const AppointmentsPage: React.FC = () => {
             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>Patient</label>
             <PatientSearch placeholder="Search patient..." onSelect={(p) => setParam('patientId', String(p.id))} />
           </div>
-          {(from || to || doctorId || patientId || status || branchId || needsRescheduling !== undefined) && (
-            <Button variant="outline" size="md" onClick={() => setSearchParams(new URLSearchParams())}>Clear</Button>
-          )}
+          <Button variant="outline" size="md" onClick={() => setSearchParams(new URLSearchParams())}>Clear filters</Button>
         </div>
       </Card>
 
