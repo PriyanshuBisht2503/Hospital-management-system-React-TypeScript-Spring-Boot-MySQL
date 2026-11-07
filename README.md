@@ -1,183 +1,148 @@
-# CareHMS - Hospital Management System
+# CareHMS — Hospital Management System
 
-A modular, enterprise-grade Hospital Management System.
+**CareHMS** is a fictional, modular hospital management system built as a **learning project**. It models the day-to-day work of a hospital — staff authentication and roles, master data, doctor schedules and availability, appointment booking and lifecycle, and a staff operations UI.
+
+> This is a portfolio/learning project. It is **not** a production medical system, it has no real patients, and it must not be used with real personal or health data.
 
 ## Architecture
 
-- **Backend:** One shared Spring Boot backend (`apps/api`) exposing REST APIs.
-- **Frontend Clients:**
-  - `apps/web-public`: Public website (L1) for visitors and prospective patients.
-  - `apps/web-patient`: Booking and patient portal (L2, L3) for registered patients.
-  - `apps/web-staff`: Internal hospital dashboard (L4) for Admins, Doctors, and Receptionists.
-- **Shared Packages:**
-  - `packages/ui`: Shared design system, tokens, and React components.
-- **Infrastructure:**
-  - `docker-compose.yml`: MySQL database and Mailhog for local development.
+A single Spring Boot backend serves three independent React apps.
 
-## Fixed Tech Stack
+| App | Port | Purpose |
+|---|---|---|
+| `apps/api` | `4000` | One shared REST backend (auth, RBAC, master data, scheduling, appointments) |
+| `apps/web-public` | `3000` | Public website (marketing/browse) — scaffold only |
+| `apps/web-patient` | `3001` | Patient booking & portal — scaffold only |
+| `apps/web-staff` | `3002` | Internal staff dashboard for `ADMIN`, `DOCTOR`, `RECEPTIONIST` |
 
-- **Frontend:** React.js, TypeScript, HTML5, CSS3 (Vite build tool)
-- **Backend:** Java 21, Spring Boot 3.5.x / 3.4.x (Maven)
-- **API Style:** REST APIs (JSON over HTTP)
-- **Database:** MySQL 8.0
-- **ORM / Data Access:** Spring Data JPA (Hibernate, `ddl-auto: none`)
-- **Schema Migrations:** Flyway
-- **Authentication:** Spring Security with JWT & BCrypt (role-based access)
-- **Fixed Roles (4 only):** `ADMIN`, `DOCTOR`, `RECEPTIONIST`, `PATIENT`
-- **Rate Limiting:** Bucket4j
-- **API Docs:** Springdoc OpenAPI (Swagger UI at `/swagger-ui.html`)
+```
+apps/
+  api/            Spring Boot 3 backend (Java 21)
+  web-public/     React + Vite (public)
+  web-patient/    React + Vite (patient)
+  web-staff/      React + Vite (staff dashboard)
+packages/
+  ui/             Shared design system (React components, tokens)
+docs/
+  adr/            Architecture Decision Records
+scripts/          Local dev helpers
+```
 
-## Demo accounts (dev only)
+Local infrastructure (`docker-compose.yml`): MySQL 8.0 + Mailhog.
 
-> [!WARNING]
-> **CRITICAL SECURITY NOTICE:**
-> The demo accounts listed below are seeded **strictly** under the `dev` Spring profile (`SPRING_PROFILES_ACTIVE=dev`) for local development and testing. They **must never exist in production**. The seeder is guarded to run only when the `dev` profile is active, and the application logs a high-visibility warning at startup whenever demo accounts exist in the database.
+## Tech stack
 
-| Role | Email | Password | Auth Method | Notes |
-|------|-------|----------|-------------|-------|
-| `ADMIN` | `admin123@hms.local` | `admin@123` | Email & Password | Full system administration |
-| `DOCTOR` | `doctor123@hms.local` | `doctor@123` | Email & Password | Linked to doctor profile (Cardiology, Central Branch) |
-| `RECEPTIONIST` | `receptionist123@hms.local` | `receptionist@123` | Email & Password | Front desk operations & check-in |
-| `PATIENT` | `patient123@hms.local` | _None_ | OTP verification (`/api/auth/otp/send`) | Patient portal & appointment booking |
+- **Backend:** Java 21, Spring Boot 3.4, Spring Security + JWT, Spring Data JPA/Hibernate, Flyway, MySQL 8.0, Bucket4j rate limiting, Springdoc OpenAPI.
+- **Frontend:** React 19, TypeScript, Vite, React Router, TanStack Query, React Hook Form + Zod.
+- **Testing:** JUnit 5 + MockMvc + H2 (and a real-MySQL concurrency suite), Vitest + Testing Library.
+- **Roles (exactly four):** `ADMIN`, `DOCTOR`, `RECEPTIONIST`, `PATIENT`.
 
-*Normal security rules apply to demo accounts: BCrypt password hashing, account lockout (after 5 failed attempts), Bucket4j rate limiting, and audit logging.*
+## Features done so far (through Phase 2)
 
-## Getting Started
+- **Auth & RBAC (4 roles):** JWT access + rotating refresh tokens, BCrypt hashing, account lockout, rate limiting, OTP login/reset for patients, `@PreAuthorize` role checks.
+- **Master data:** branches, departments, specialties, rooms — CRUD with soft delete and audit logging.
+- **Doctors:** profiles, user linking, photos, public search API.
+- **Doctor schedules & exceptions:** weekly templates (breaks, slot length), leave/extra-hours/holiday exceptions, activation rules.
+- **Slot calculation:** open slots derived from templates + exceptions + existing bookings, in hospital-local (IST) time.
+- **Double-booking-proof appointment engine:** transactional booking, `READ_COMMITTED`, per-doctor locking and a database unique-key backstop.
+- **Appointment state machine:** `BOOKED → CONFIRMED → CHECKED_IN → IN_CONSULTATION → COMPLETED`, plus cancel / no-show / reschedule rules.
+- **Notifications & reminders:** async email/SMS notifications on book/cancel/reschedule; 24h and 2h reminder jobs.
+- **Patients:** staff-managed patient records + medical history; doctor-facing contact masking.
+- **Staff UI (`apps/web-staff`):** patients directory/detail, doctor schedules, appointment list/detail with actions + rescheduling, booking wizard, doctor "My Day" and staff "Day Agenda".
+
+## Roadmap (NOT built yet)
+
+- Public marketing website (content pages).
+- Online self-booking and online payment.
+- Patient portal (their own appointments and records).
+- Billing & invoicing.
+- Medical records / clinical notes beyond appointment history.
+
+## Run locally (Windows)
 
 ### Prerequisites
-- Node.js 20+ & npm 10+
+- Node.js 20+ and npm 10+
 - Java 21+
-- Docker & Docker Compose (or local MySQL 8.0)
+- Docker Desktop (for MySQL + Mailhog), or a local MySQL 8.0
 
-### Quick Start
+### 1. Start infrastructure
+```powershell
+npm run infra:up
+```
+This starts MySQL (`hms_db`, user `hms`) and Mailhog (SMTP `1025`, UI `8025`).
 
-1. **Database Setup (Non-root user):**
-   Docker Compose automatically initializes the limited `hms` user. If configuring a local MySQL instance manually:
-   ```sql
-   CREATE DATABASE IF NOT EXISTS hms_db;
-   CREATE USER IF NOT EXISTS 'hms'@'localhost' IDENTIFIED BY 'hms_password_123';
-   GRANT ALL PRIVILEGES ON hms_db.* TO 'hms'@'localhost';
-   FLUSH PRIVILEGES;
-   ```
+### 2. Configure environment
+```powershell
+Copy-Item .env.example .env
+```
+Edit `.env` if your MySQL credentials differ. `.env` is git-ignored.
 
-   > [!TIP]
-   > **Resetting Local Dev Database for Updated Seed Data:**
-   > Because `DevDataSeeder` is idempotent and only seeds when repositories are empty, to reset the dev database and populate fresh fictional seed data (e.g., Central Branch, North Clinic, updated dummy phone numbers):
-   > ```bash
-   > # Using Docker Compose:
-   > docker compose down -v
-   > docker compose up -d
-   > # Or manually in MySQL client:
-   > mysql -u root -p -e "DROP DATABASE hms_db; CREATE DATABASE hms_db; GRANT ALL PRIVILEGES ON hms_db.* TO 'hms'@'localhost'; FLUSH PRIVILEGES;"
-   > ```
-   > On the next startup of `apps/api`, Flyway migrations and `DevDataSeeder` will recreate tables and insert the new fictional records.
+### 3. Install dependencies
+```powershell
+npm install
+```
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### 4. Run the backend (port 4000)
+```powershell
+npm run dev:api
+```
+Starts with the `dev` profile (Flyway migrations + fictional dev seed data).
 
-3. **Start Infrastructure:**
-   ```bash
-   npm run infra:up
-   ```
+### 5. Run the staff UI (port 3002)
+```powershell
+npm run dev:web-staff
+```
+Or run all frontends with `npm run dev:web`.
 
-4. **Run Typecheck & Build:**
-   ```bash
-   npm run typecheck
-   npm run build
-   ```
+## Tests
 
-5. **Run API Tests:**
-   ```bash
-   npm run test:api
-   ```
+### Backend (from the repo root)
+```powershell
+npm run test:api
+```
+Runs the JUnit suite, including a real-MySQL concurrency test (`AppointmentConcurrencyTest`) under the `mysql-test` profile.
 
-6. **Start Development Servers:**
-   - Backend API (port 4000):
-     ```bash
-     npm run dev:api
-     ```
-   - All Frontend Apps:
-     ```bash
-     npm run dev:web
-     ```
+### Frontend
+```powershell
+cd "C:\Users\priya\OneDrive\Documents\HOSPITAL AI\apps\web-staff"
+npm test
+```
 
-## REST API Endpoints (Phase 1)
+### Typecheck and build (from the repo root)
+```powershell
+npm run typecheck
+npm run build
+```
 
-All endpoints return uniform JSON responses. Protected endpoints require a Bearer token in the `Authorization` header.
+## Demo accounts (dev profile only)
 
-### Authentication (`/api/auth`)
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| `POST` | `/api/auth/login` | Public | Staff email/password login (rate limited, lockout after 5 failed attempts) |
-| `POST` | `/api/auth/refresh` | Public (Cookie) | Rotate refresh token and issue fresh access token |
-| `POST` | `/api/auth/logout` | Public (Cookie) | Revoke refresh token and clear auth cookie |
-| `GET` | `/api/auth/me` | Authenticated | Retrieve current user profile and role |
-| `POST` | `/api/auth/otp/send` | Public | Request email/phone OTP for patient login or password reset |
-| `POST` | `/api/auth/otp/verify` | Public | Verify OTP code and obtain authentication tokens |
-| `POST` | `/api/auth/register-patient`| Public | Self-registration for patients with single-use OTP verification |
-| `POST` | `/api/auth/password-reset/request` | Public | Request password reset email |
-| `POST` | `/api/auth/password-reset/confirm` | Public | Confirm password reset with single-use token |
+> These accounts are seeded **only** when `SPRING_PROFILES_ACTIVE=dev`. They must never exist in production.
 
-### Master Data (`/api/branches`, `/api/departments`, `/api/specialties`, `/api/rooms`)
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| `GET` | `/api/branches` | Public | Paginated list (unauthenticated callers see active branches only) |
-| `GET` | `/api/branches/{id}` | Public | Branch details by ID (active only for unauthenticated callers) |
-| `POST` | `/api/branches` | `ADMIN` | Create new hospital branch (@Audited) |
-| `PUT` | `/api/branches/{id}` | `ADMIN` | Update branch details (@Audited) |
-| `DELETE`| `/api/branches/{id}` | `ADMIN` | Soft delete branch (409 if referenced by active doctors or rooms) (@Audited) |
-| `GET` | `/api/departments` | Public | Paginated list (unauthenticated callers see active only) |
-| `GET` | `/api/departments/{id}` | Public | Department details by ID |
-| `POST` | `/api/departments` | `ADMIN` | Create new department (@Audited) |
-| `PUT` | `/api/departments/{id}` | `ADMIN` | Update department details (@Audited) |
-| `DELETE`| `/api/departments/{id}` | `ADMIN` | Soft delete department (409 if referenced by active rooms) (@Audited) |
-| `GET` | `/api/specialties` | Public | Paginated list (unauthenticated callers see active only) |
-| `GET` | `/api/specialties/{id}` | Public | Specialty details by ID |
-| `POST` | `/api/specialties` | `ADMIN` | Create medical specialty (@Audited) |
-| `PUT` | `/api/specialties/{id}` | `ADMIN` | Update medical specialty (@Audited) |
-| `DELETE`| `/api/specialties/{id}` | `ADMIN` | Soft delete specialty (409 if referenced by active doctors) (@Audited) |
-| `GET` | `/api/rooms` | Authenticated | Paginated room search by branch, department, and room type |
-| `GET` | `/api/rooms/{id}` | Authenticated | Room details by ID |
-| `POST` | `/api/rooms` | `ADMIN` | Create room (409 if duplicate room number in branch) (@Audited) |
-| `PUT` | `/api/rooms/{id}` | `ADMIN` | Update room (@Audited) |
-| `DELETE`| `/api/rooms/{id}` | `ADMIN` | Soft delete room (@Audited) |
+| Role | Email | Password |
+|---|---|---|
+| `ADMIN` | `admin123@hms.local` | `admin@123` |
+| `DOCTOR` | `doctor123@hms.local` | `doctor@123` |
+| `RECEPTIONIST` | `receptionist123@hms.local` | `receptionist@123` |
+| `PATIENT` | `patient123@hms.local` | OTP (`/api/auth/otp/send`) |
 
-### Doctor Management (`/api/doctors`, `/api/admin/doctors`)
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| `GET` | `/api/doctors` | Public | Paginated list of active doctors. Returns public DTO with NO email, phone, or user ID |
-| `GET` | `/api/doctors/{id}` | Public | Active doctor profile (returns public DTO; 404 for inactive doctors) |
-| `GET` | `/api/admin/doctors` | `ADMIN` | Paginated list of all doctors (active & inactive) with full user details |
-| `GET` | `/api/admin/doctors/{id}` | `ADMIN` | Full doctor details by ID |
-| `POST` | `/api/admin/doctors` | `ADMIN` | Single transaction: creates DOCTOR user (min 8 char password) and profile (@Audited) |
-| `POST` | `/api/admin/doctors/photo` | `ADMIN` | Upload doctor profile photo for creation with `is_public=true` (@Audited) |
-| `POST` | `/api/admin/doctors/{id}/photo` | `ADMIN` | Upload/update doctor profile photo for existing doctor (@Audited) |
-| `PUT` | `/api/admin/doctors/{id}` | `ADMIN` | Update doctor profile details, specialties, and branches (@Audited) |
-| `DELETE`| `/api/admin/doctors/{id}` | `ADMIN` | Deactivate doctor profile, disable linked user, and revoke all refresh tokens (@Audited) |
+## Security design summary
 
-### User & Staff Management (`/api/admin/users`)
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| `GET` | `/api/admin/users` | `ADMIN` | Paginated list with role and search filters (never returns password hashes) |
-| `GET` | `/api/admin/users/{id}` | `ADMIN` | User details by ID |
-| `POST` | `/api/admin/users` | `ADMIN` | Create staff (`ADMIN`, `DOCTOR`, `RECEPTIONIST` only; rejects `PATIENT` with 400) (@Audited) |
-| `PATCH` | `/api/admin/users/{id}/role` | `ADMIN` | Change role (prevents self-demotion or demoting last active ADMIN; revokes refresh tokens) (@Audited) |
-| `PATCH` | `/api/admin/users/{id}/status` | `ADMIN` | Enable/disable user (prevents disabling self or last active ADMIN; revokes refresh tokens) (@Audited) |
+- **Passwords:** BCrypt hashing; never returned by any API.
+- **Tokens:** short-lived JWT access tokens + rotating, revocable refresh tokens (HTTP-only cookie); logout/role change/user disable revokes refresh tokens.
+- **Lockout & rate limiting:** account lockout after 5 failed logins; Bucket4j throttling on auth and booking endpoints.
+- **RBAC:** exactly four roles, enforced with `@PreAuthorize`; patient data is scoped server-side and written to the audit log.
+- **Input validation:** Bean Validation + a global error handler returning a consistent `ErrorResponse`; 404s avoid leaking existence of inaccessible records.
+- **Secrets:** the database password and JWT secret come from environment variables. Dev-only defaults live only in the `dev` profile and `.env.example`; production config requires `DB_PASSWORD` to be set explicitly.
+- **Double booking:** prevented by a transactional check, a per-doctor lock, and a unique database key as the final backstop (see `docs/adr/0003-*.md`).
 
-### Audit Log Viewer (`/api/admin/audit-logs`)
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| `GET` | `/api/admin/audit-logs` | `ADMIN` | Paginated audit logs with filters: userId, action, entityType, and date range |
+## Test counts
 
-### File Storage (`/api/files`)
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| `POST` | `/api/files/upload` | Authenticated | Upload file (max 5 MB; verifies magic bytes for JPEG, PNG, WebP, PDF; random UUID stored name) (@Audited) |
-| `GET` | `/api/files/{storedName}` | Public / Auth | Download file (public for doctor photos; requires owner or ADMIN for private files; traversal safe) |
-| `DELETE`| `/api/files/{storedName}` | Authenticated | Delete file (owner or ADMIN only) (@Audited) |
+- **Backend:** 342 documented JUnit tests (see [`docs/phase-2-backend-summary.md`](docs/phase-2-backend-summary.md)), plus the `AppointmentNeedsReschedulingTest` cases added for the `needsRescheduling` filter. The count here is the number of test methods; parameterized tests expand to more executions.
+- **Frontend:** 32 Vitest test files under `apps/web-staff/src/__tests__`.
 
-> [!NOTE]
-> **Known Item - Orphaned Photo Files:**
-> When creating a new doctor, a profile photo may be pre-uploaded via `POST /api/admin/doctors/photo`. If the administrator abandons the creation form without submitting, the pre-uploaded photo remains stored on disk as an orphaned file. A background scheduled cleanup routine is planned for later phases to prune unreferenced temporary files.
+Run the suites above for the current, authoritative counts.
+
+## Docs
+
+- [`docs/phase-2-backend-summary.md`](docs/phase-2-backend-summary.md) — Phase 2 backend verification.
+- [`docs/adr/`](docs/adr/) — architecture decisions (tech stack, notification executor policy, booking concurrency).
