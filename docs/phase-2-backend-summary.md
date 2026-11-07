@@ -2,7 +2,8 @@
 
 **Project:** CareHMS (Hospital Management System)  
 **Branch:** `phase-2`  
-**Git Commit:** `acd6142f51602c43187421ef32bb68a09cc7974f`  
+**Git Commit:** `8ef04ed9bd63e87178c86879aaffb9ffdeb056fa` (Phase 2 backend tip)  
+**Merged into `master`:** `aacb85b` (Merge Phase 2: scheduling, appointments and staff UI)  
 **Date:** November 2, 2026  
 **Backend Stack:** Java 21, Spring Boot 3.4.2, Spring Data JPA / Hibernate, MySQL 8.0, Flyway  
 **Overall Backend Test Results:** **342 / 342 Tests Passing** (0 Failures, 0 Errors, 0 Skipped)  
