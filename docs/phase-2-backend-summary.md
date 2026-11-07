@@ -6,7 +6,7 @@
 **Merged into `master`:** `aacb85b` (Merge Phase 2: scheduling, appointments and staff UI)  
 **Date:** November 2, 2026  
 **Backend Stack:** Java 21, Spring Boot 3.4.2, Spring Data JPA / Hibernate, MySQL 8.0, Flyway  
-**Overall Backend Test Results:** **342 / 342 Tests Passing** (0 Failures, 0 Errors, 0 Skipped)  
+**Overall Backend Test Results:** **360 / 360 Tests Passing** (0 Failures, 0 Errors, 0 Skipped)  
 
 ---
 
@@ -255,13 +255,15 @@ AppointmentResponseDto rescheduled = bookingService.rescheduleAppointment(
   5. `AppointmentStateMachineTest`: Valid `BOOKED -> RESCHEDULED` transition test `bookedToRescheduled` (+1)
   6. `PatientApiTest`: Split into dedicated tests `doctorWithAppointmentCanViewPatientWithContactMasked`, `doctorWithNoAppointmentGets404IdenticalToNonexistentId`, `patientSearchForbiddenForPatients`, and `doctorSearchReturnsOnlyOwnPatientsWhileAdminSearchReturnsAll` (+2)
   7. `AppointmentNotificationAndReminderTest`: Slow email service non-blocking booking test `slowEmailServiceDoesNotDelayBooking` (+1)
-- **Total: $332 + 10 = 342$ tests.**
+- **Total: $332 + 10 + 18 = 360$ tests** (18 added after the Phase 2 baseline: the 10 review-item tests above plus 8 JWT-secret hardening tests).
+
+> **JWT-secret hardening (later):** 8 tests were added by requiring `JWT_SECRET` outside dev/test profiles — 3 in `JwtPropertiesValidatorTest` and 5 in `JwtSecretProfileTest`.
 
 ### 4.2 Raw Maven Build Summary
 ```
 [INFO] Results:
 [INFO] 
-[INFO] Tests run: 342, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 360, Failures: 0, Errors: 0, Skipped: 0
 [INFO] 
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
@@ -640,5 +642,5 @@ public AppointmentResponseDto rescheduleAppointment(
 | `com.hms.api.web.Step3BAuthTest` | 14 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.UnverifiedRegistrationLinkingTest` | 1 | 0 | 0 | 0 | PASS |
 | `com.hms.api.web.UserManagementTest` | 5 | 0 | 0 | 0 | PASS |
-| **Total** | **342** | **0** | **0** | **0** | **PASS** |
+| **Total** | **360** | **0** | **0** | **0** | **PASS** |
 

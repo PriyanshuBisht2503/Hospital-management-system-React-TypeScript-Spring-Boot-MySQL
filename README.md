@@ -1,5 +1,7 @@
 # CareHMS — Hospital Management System
 
+![CI](https://github.com/PriyanshuBisht2503/Hospital-Management-system/actions/workflows/ci.yml/badge.svg)
+
 **CareHMS** is a fictional, modular hospital management system built as a **learning project**. It models the day-to-day work of a hospital — staff authentication and roles, master data, doctor schedules and availability, appointment booking and lifecycle, and a staff operations UI.
 
 > This is a portfolio/learning project. It is **not** a production medical system, it has no real patients, and it must not be used with real personal or health data.
@@ -139,8 +141,9 @@ npm run build
 
 ## Test counts
 
-- **Backend:** 342 documented JUnit tests (see [`docs/phase-2-backend-summary.md`](docs/phase-2-backend-summary.md)), plus the `AppointmentNeedsReschedulingTest` cases added for the `needsRescheduling` filter. The count here is the number of test methods; parameterized tests expand to more executions.
-- **Frontend:** 32 Vitest test files under `apps/web-staff/src/__tests__`.
+- **Backend:** 360 JUnit tests (Maven surefire; includes 165 role/endpoint security-matrix cases and 6 real-MySQL concurrency scenarios).
+- **Frontend:** 166 Vitest tests in 32 files (`apps/web-staff`).
+- **CI (GitHub Actions)** runs both suites on every push to `main` and on pull requests.
 
 Run the suites above for the current, authoritative counts.
 
