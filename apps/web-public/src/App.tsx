@@ -25,7 +25,7 @@ export default function App() {
             </span>
             <span>|</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={14} /> Aster Hospital - Al Qusais & Mankhool
+              <Clock size={14} /> CareHMS Hospital - Central Branch & North Clinic
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -44,7 +44,7 @@ export default function App() {
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#0f172a' }}>
-                ASTER <span style={{ color: '#0d9488' }}>HOSPITALS</span>
+                CARE<span style={{ color: '#0d9488' }}>HMS</span>
               </h1>
               <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '1px' }}>UAE ECOSYSTEM • L1 PUBLIC</span>
             </div>
@@ -75,7 +75,7 @@ export default function App() {
               We'll Treat You Well. World-Class Healthcare in Dubai.
             </h2>
             <p style={{ fontSize: '18px', color: '#cbd5e1', lineHeight: 1.6, margin: '0 0 32px 0', maxWidth: '540px' }}>
-              Consult UAE's top-tier medical specialists, book appointments effortlessly, and experience integrated digital care with Aster HMS.
+              Consult UAE's top-tier medical specialists, book appointments effortlessly, and experience integrated digital care with CareHMS.
             </p>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
               <Button size="lg" style={{ backgroundColor: '#ffffff', color: '#0d9488' }} onClick={() => window.location.href = 'http://localhost:3001'}>
@@ -104,9 +104,8 @@ export default function App() {
               <div>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>Hospital Branch</label>
                 <select style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}>
-                  <option>Aster Hospital, Mankhool (Dubai)</option>
-                  <option>Aster Hospital, Al Qusais (Dubai)</option>
-                  <option>Aster Hospital, Muhaisnah (Dubai)</option>
+                  <option>CareHMS Central Branch (Dubai)</option>
+                  <option>CareHMS North Clinic (Dubai)</option>
                 </select>
               </div>
               <Button size="md" style={{ marginTop: '8px' }}>
@@ -156,9 +155,9 @@ export default function App() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '24px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffffff', fontWeight: 700, marginBottom: '8px' }}>
-              <ShieldCheck size={20} color="#0d9488" /> Aster Hospitals UAE
+              <ShieldCheck size={20} color="#0d9488" /> CareHMS Hospitals UAE
             </div>
-            <p style={{ margin: 0, fontSize: '13px' }}>© 2026 Aster DM Healthcare. All rights reserved. Monorepo Layer 1 Public App.</p>
+            <p style={{ margin: 0, fontSize: '13px' }}>© 2026 CareHMS Healthcare. All rights reserved. Monorepo Layer 1 Public App.</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <span style={{ fontSize: '13px' }}>API Health Status:</span>

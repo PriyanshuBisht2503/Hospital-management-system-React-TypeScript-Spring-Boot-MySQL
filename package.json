@@ -2,7 +2,7 @@
   "name": "hospital-management-system",
   "version": "1.0.0",
   "private": true,
-  "description": "Hospital Management System modelled on Aster Hospitals (UAE)",
+  "description": "CareHMS - Enterprise Hospital Management System",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -12,8 +12,9 @@
     "infra:down": "docker compose down",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "test:api": "node scripts/run-mvn.js test",
-    "dev:api": "node scripts/run-mvn.js spring-boot:run",
+    "dev:api": "node scripts/run-mvn.js spring-boot:run -Dspring-boot.run.profiles=dev",
     "dev:web-public": "npm run dev --workspace=apps/web-public",
     "dev:web-patient": "npm run dev --workspace=apps/web-patient",
     "dev:web-staff": "npm run dev --workspace=apps/web-staff",

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -7,12 +7,61 @@ export interface ModalProps {
   children: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-}) => {
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Accessible modal: closes on Escape, traps Tab focus inside the dialog, and
+ * returns focus to the element that opened it on close/unmount.
+ */
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    previousFocus.current = document.activeElement as HTMLElement | null;
+    const node = dialogRef.current;
+    node?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !node) return;
+
+      const focusables = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (el) => !el.hasAttribute('aria-hidden'),
+      );
+      if (focusables.length === 0) {
+        event.preventDefault();
+        node.focus();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus.current?.focus?.();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -30,6 +79,11 @@ export const Modal: React.FC<ModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '16px',
@@ -37,6 +91,7 @@ export const Modal: React.FC<ModalProps> = ({
           maxWidth: '520px',
           padding: '24px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          outline: 'none',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -50,11 +105,10 @@ export const Modal: React.FC<ModalProps> = ({
             paddingBottom: '12px',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#0f172a' }}>
-            {title}
-          </h3>
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#0f172a' }}>{title}</h3>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             style={{
               background: 'transparent',
               border: 'none',

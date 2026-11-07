@@ -4,14 +4,16 @@ services:
     container_name: hms-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: root_secure_password_do_not_use
       MYSQL_DATABASE: hms_db
+      MYSQL_USER: hms
+      MYSQL_PASSWORD: hms_password_123
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uhms", "-phms_password_123"]
       interval: 5s
       timeout: 5s
       retries: 10
