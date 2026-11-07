@@ -271,4 +271,60 @@ class PatientSelfServiceApiTest {
                         .content(body))
                 .andExpect(status().isNotFound());
     }
+
+    // ------------------------------------------------------------------ extra coverage
+
+    @Test
+    @DisplayName("GET /api/appointments/me is routed to the collection, not parsed as an id")
+    void myAppointmentsMeIsNotParsedAsId() throws Exception {
+        book(patient1, 2, 10);
+
+        mockMvc.perform(get("/api/appointments/me").header("Authorization", patient1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.pageNumber").value(0))
+                .andExpect(jsonPath("$.pageSize").value(6))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/auth/me exposes a null patientId for staff")
+    void meExposesNullPatientIdForStaff() throws Exception {
+        mockMvc.perform(get("/api/auth/me").header("Authorization", staffToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.patientId").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("PUT /api/patients/me ignores email and userId supplied in the body")
+    void updateMyProfileCannotChangeEmailOrUserId() throws Exception {
+        String body = """
+                { "fullName": "Renamed Patient", "email": "attacker@example.com", "userId": 999 }
+                """;
+
+        mockMvc.perform(put("/api/patients/me").header("Authorization", patient1Token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("ss.p1@example.com"))
+                .andExpect(jsonPath("$.userId").value(patientUser1.getId()));
+    }
+
+    @Test
+    @DisplayName("GET /api/patients/me returns 404 when the caller has no patient row")
+    void getMyProfileWithoutPatientRowReturns404() throws Exception {
+        User orphan = userRepository.save(new User("ss.orphan@example.com", "+919100000777", null, Role.PATIENT, "Orphan"));
+        String orphanToken = "Bearer " + tokenProvider.generateAccessToken(orphan);
+
+        mockMvc.perform(get("/api/patients/me").header("Authorization", orphanToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Not Found"));
+    }
+
+    @Test
+    @DisplayName("GET /api/appointments/me caps the page size at 100")
+    void myAppointmentsSizeCapIsEnforced() throws Exception {
+        mockMvc.perform(get("/api/appointments/me").param("size", "500").header("Authorization", patient1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pageSize").value(100));
+    }
 }

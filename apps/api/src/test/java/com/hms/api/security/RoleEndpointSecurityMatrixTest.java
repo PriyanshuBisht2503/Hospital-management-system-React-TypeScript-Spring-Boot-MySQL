@@ -1,7 +1,9 @@
 package com.hms.api.security;
 
+import com.hms.api.domain.Patient;
 import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
+import com.hms.api.repository.PatientRepository;
 import com.hms.api.repository.UserRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +49,9 @@ class RoleEndpointSecurityMatrixTest {
     private UserRepository userRepository;
 
     @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     private final Map<Role, String> roleTokens = new EnumMap<>(Role.class);
@@ -74,6 +79,15 @@ class RoleEndpointSecurityMatrixTest {
                 userRepository.save(new User(email, "+97150000" + role.ordinal(), "hash", role, "Matrix " + role.name()))
             );
             roleTokens.put(role, "Bearer " + jwtTokenProvider.generateAccessToken(user));
+
+            // Patient self-service endpoints need a linked Patient row for the PATIENT role.
+            if (role == Role.PATIENT) {
+                patientRepository.findByUserId(user.getId()).orElseGet(() -> {
+                    Patient p = new Patient("Matrix Patient", "+971500009999", email, null, null);
+                    p.setUser(user);
+                    return patientRepository.save(p);
+                });
+            }
         }
     }
 
@@ -195,6 +209,19 @@ class RoleEndpointSecurityMatrixTest {
 
         addEndpoint(rows, HttpMethod.POST, "/api/admin/doctors/1/exceptions",
                 401, 403, 403, 400, 400, "{}", false);
+
+        // --- Phase 3: Patient self-service ---
+        addEndpoint(rows, HttpMethod.GET, "/api/appointments/me",
+                401, 200, 403, 403, 403, null, false);
+
+        addEndpoint(rows, HttpMethod.GET, "/api/patients/me",
+                401, 200, 403, 403, 403, null, false);
+
+        addEndpoint(rows, HttpMethod.PUT, "/api/patients/me",
+                401, 400, 403, 403, 403, "{}", false);
+
+        addEndpoint(rows, HttpMethod.POST, "/api/appointments/1/reschedule",
+                401, 400, 400, 403, 400, "{}", false);
 
         return rows.stream();
     }
