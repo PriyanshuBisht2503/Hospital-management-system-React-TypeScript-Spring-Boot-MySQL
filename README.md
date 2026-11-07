@@ -77,6 +77,8 @@ Copy-Item .env.example .env
 ```
 Edit `.env` if your MySQL credentials differ. `.env` is git-ignored.
 
+`JWT_SECRET` is **required outside the `dev`/`test` profiles** and must be at least 32 characters. In production the app refuses to start if it is missing, too short, or set to the known development default. The `dev` profile uses a built-in dev-only secret, so local runs do not need one.
+
 ### 3. Install dependencies
 ```powershell
 npm install
@@ -132,7 +134,7 @@ npm run build
 - **Lockout & rate limiting:** account lockout after 5 failed logins; Bucket4j throttling on auth and booking endpoints.
 - **RBAC:** exactly four roles, enforced with `@PreAuthorize`; patient data is scoped server-side and written to the audit log.
 - **Input validation:** Bean Validation + a global error handler returning a consistent `ErrorResponse`; 404s avoid leaking existence of inaccessible records.
-- **Secrets:** the database password and JWT secret come from environment variables. Dev-only defaults live only in the `dev` profile and `.env.example`; production config requires `DB_PASSWORD` to be set explicitly.
+- **Secrets:** the database password and JWT secret come from environment variables. `DB_PASSWORD` is required in production; `JWT_SECRET` is required outside `dev`/`test` (minimum 32 characters) and the app **fails to start** if it is missing, too short, or equal to the known development default. Dev-only defaults live only in the `dev` profile, the test profiles and `.env.example`.
 - **Double booking:** prevented by a transactional check, a per-doctor lock, and a unique database key as the final backstop (see `docs/adr/0003-*.md`).
 
 ## Test counts
