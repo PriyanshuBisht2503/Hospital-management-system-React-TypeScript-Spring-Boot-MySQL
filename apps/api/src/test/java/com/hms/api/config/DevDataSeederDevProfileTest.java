@@ -1,21 +1,31 @@
 package com.hms.api.config;
 
+import com.hms.api.domain.Appointment;
+import com.hms.api.domain.AppointmentStatus;
 import com.hms.api.domain.Doctor;
+import com.hms.api.domain.Patient;
 import com.hms.api.domain.Role;
 import com.hms.api.domain.User;
+import com.hms.api.repository.AppointmentRepository;
 import com.hms.api.repository.DoctorRepository;
+import com.hms.api.repository.DoctorScheduleRepository;
+import com.hms.api.repository.PatientRepository;
 import com.hms.api.repository.UserRepository;
+import com.hms.api.service.SlotCalculationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +47,18 @@ class DevDataSeederDevProfileTest {
 
     @Autowired
     private DoctorRepository doctorRepository;
+
+    @Autowired
+    private DoctorScheduleRepository scheduleRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private SlotCalculationService slotCalculationService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -92,13 +114,66 @@ class DevDataSeederDevProfileTest {
     @Test
     @DisplayName("DevDataSeeder is idempotent when executed multiple times")
     void seederIsIdempotent() {
-        long initialUserCount = userRepository.count();
-        long initialDoctorCount = doctorRepository.count();
+        long users = userRepository.count();
+        long doctors = doctorRepository.count();
+        long patients = patientRepository.count();
+        long schedules = scheduleRepository.count();
+        long appointments = appointmentRepository.count();
 
         // Run seeder again
         devDataSeeder.run();
 
-        assertThat(userRepository.count()).isEqualTo(initialUserCount);
-        assertThat(doctorRepository.count()).isEqualTo(initialDoctorCount);
+        assertThat(userRepository.count()).isEqualTo(users);
+        assertThat(doctorRepository.count()).isEqualTo(doctors);
+        assertThat(patientRepository.count()).isEqualTo(patients);
+        assertThat(scheduleRepository.count()).isEqualTo(schedules);
+        assertThat(appointmentRepository.count()).isEqualTo(appointments);
+    }
+
+    @Test
+    @DisplayName("Seeds a realistic dataset: doctors, patients, schedules and appointments")
+    void seedsRealisticDemoData() {
+        assertThat(doctorRepository.count()).isGreaterThanOrEqualTo(6);
+        assertThat(patientRepository.count()).isGreaterThanOrEqualTo(4);
+        assertThat(scheduleRepository.count()).isGreaterThan(0);
+        assertThat(appointmentRepository.count()).isGreaterThanOrEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("Every seeded doctor has at least one weekly schedule")
+    void everyDoctorHasASchedule() {
+        assertThat(doctorRepository.findAll()).isNotEmpty();
+        for (Doctor doctor : doctorRepository.findAll()) {
+            assertThat(scheduleRepository.findByDoctorId(doctor.getId()))
+                    .as("doctor %s must have schedules", doctor.getId())
+                    .isNotEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("Every seeded doctor has at least one open slot in the next 14 days")
+    void everyDoctorHasOpenSlots() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        for (Doctor doctor : doctorRepository.findAll()) {
+            assertThat(slotCalculationService.calculateAvailableSlots(doctor.getId(), today, today.plusDays(14), null))
+                    .as("doctor %s must expose open slots", doctor.getId())
+                    .isNotEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("Demo patient has a linked row with four appointments in the four expected states")
+    void demoPatientHasFourAppointments() {
+        User demoUser = userRepository.findByEmail(DevDataSeeder.DEMO_PATIENT_EMAIL).orElseThrow();
+        Patient demo = patientRepository.findByUserId(demoUser.getId()).orElseThrow();
+
+        var page = appointmentRepository.findByPatientId(demo.getId(), null, PageRequest.of(0, 10));
+        assertThat(page.getContent()).hasSize(4);
+        assertThat(page.getContent()).extracting(Appointment::getStatus)
+                .containsExactlyInAnyOrder(
+                        AppointmentStatus.COMPLETED,
+                        AppointmentStatus.CONFIRMED,
+                        AppointmentStatus.BOOKED,
+                        AppointmentStatus.CANCELLED);
     }
 }
