@@ -181,7 +181,7 @@ public class AuthService {
         return AuthResponse.of(
             accessToken,
             tokenProvider.getAccessTokenExpirationMs() / 1000,
-            UserSummaryDto.fromEntity(user, resolveDoctorId(user))
+            UserSummaryDto.fromEntity(user, resolveDoctorId(user), resolvePatientId(user))
         );
     }
 
@@ -322,7 +322,7 @@ public class AuthService {
         return AuthResponse.of(
             accessToken,
             tokenProvider.getAccessTokenExpirationMs() / 1000,
-            UserSummaryDto.fromEntity(user)
+            UserSummaryDto.fromEntity(user, null, resolvePatientId(user))
         );
     }
 
@@ -556,7 +556,7 @@ public class AuthService {
         return AuthResponse.of(
             newAccessToken,
             tokenProvider.getAccessTokenExpirationMs() / 1000,
-            UserSummaryDto.fromEntity(user, resolveDoctorId(user))
+            UserSummaryDto.fromEntity(user, resolveDoctorId(user), resolvePatientId(user))
         );
     }
 
@@ -597,12 +597,19 @@ public class AuthService {
             throw new InvalidTokenException("User account is inactive or locked");
         }
 
-        return UserSummaryDto.fromEntity(user, resolveDoctorId(user));
+        return UserSummaryDto.fromEntity(user, resolveDoctorId(user), resolvePatientId(user));
     }
 
     private Long resolveDoctorId(User user) {
         if (user.getRole() == Role.DOCTOR) {
             return doctorRepository.findByUserId(user.getId()).map(Doctor::getId).orElse(null);
+        }
+        return null;
+    }
+
+    private Long resolvePatientId(User user) {
+        if (user.getRole() == Role.PATIENT) {
+            return patientRepository.findByUserId(user.getId()).map(Patient::getId).orElse(null);
         }
         return null;
     }

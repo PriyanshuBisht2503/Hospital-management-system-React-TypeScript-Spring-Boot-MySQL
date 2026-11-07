@@ -9,6 +9,7 @@ import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ResourceNotFoundException;
 import com.hms.api.repository.PatientRepository;
 import com.hms.api.security.ClientIpResolver;
+import com.hms.api.security.RateLimiterService;
 import com.hms.api.security.SecurityUser;
 import com.hms.api.service.AppointmentBookingService;
 import com.hms.api.service.AppointmentLifecycleService;
@@ -36,6 +37,7 @@ public class AppointmentController {
     private final AppointmentLifecycleService lifecycleService;
     private final PatientRepository patientRepository;
     private final ClientIpResolver clientIpResolver;
+    private final RateLimiterService rateLimiterService;
     private final Clock clock;
 
     public AppointmentController(
@@ -43,11 +45,13 @@ public class AppointmentController {
             AppointmentLifecycleService lifecycleService,
             PatientRepository patientRepository,
             ClientIpResolver clientIpResolver,
+            RateLimiterService rateLimiterService,
             Clock clock) {
         this.bookingService = bookingService;
         this.lifecycleService = lifecycleService;
         this.patientRepository = patientRepository;
         this.clientIpResolver = clientIpResolver;
+        this.rateLimiterService = rateLimiterService;
         this.clock = clock;
     }
 
@@ -58,6 +62,8 @@ public class AppointmentController {
             @Valid @RequestBody BookAppointmentRequest request,
             @AuthenticationPrincipal SecurityUser currentUser
     ) {
+        rateLimiterService.checkBookingLimit("user:" + currentUser.getId());
+
         if (currentUser.getRole() == Role.PATIENT) {
             Patient patient = patientRepository.findById(request.patientId())
                     .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + request.patientId()));
@@ -101,6 +107,19 @@ public class AppointmentController {
         return ResponseEntity.ok(lifecycleService.getAppointments(
                 doctorId, branchId, status, needsRescheduling, patientId, from, to, page, size, currentUser
         ));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('PATIENT')")
+    @Operation(summary = "List my appointments", description = "Patient self-service list, newest first. Optional status and upcoming=true filters.")
+    public ResponseEntity<PageResponse<AppointmentResponseDto>> getMyAppointments(
+            @RequestParam(required = false) AppointmentStatus status,
+            @RequestParam(required = false) Boolean upcoming,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size,
+            @AuthenticationPrincipal SecurityUser currentUser
+    ) {
+        return ResponseEntity.ok(lifecycleService.getMyAppointments(status, upcoming, page, size, currentUser));
     }
 
     @GetMapping("/{id}")
@@ -196,6 +215,10 @@ public class AppointmentController {
             @Valid @RequestBody RescheduleAppointmentRequest rescheduleRequest,
             @AuthenticationPrincipal SecurityUser currentUser
     ) {
+        if (currentUser.getRole() == Role.PATIENT) {
+            lifecycleService.assertPatientOwnership(id, currentUser);
+        }
+
         boolean maskPatientContact = currentUser.getRole() == Role.DOCTOR;
         AppointmentResponseDto response = bookingService.rescheduleAppointment(
                 id,

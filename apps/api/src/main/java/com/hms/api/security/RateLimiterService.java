@@ -73,6 +73,16 @@ public class RateLimiterService {
         }
     }
 
+    /**
+     * Rate limit for booking requests per caller (20 per minute).
+     */
+    public void checkBookingLimit(String callerKey) {
+        Bucket bucket = buckets.get("booking:" + callerKey, k -> createBucket(20, Duration.ofMinutes(1)));
+        if (bucket == null || !bucket.tryConsume(1)) {
+            throw new RateLimitExceededException("Too many booking attempts. Please try again later.");
+        }
+    }
+
     public void clear() {
         buckets.invalidateAll();
     }

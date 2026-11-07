@@ -5,6 +5,7 @@ import com.hms.api.domain.Role;
 import com.hms.api.dto.CreatePatientRequest;
 import com.hms.api.dto.PageResponse;
 import com.hms.api.dto.PatientDto;
+import com.hms.api.dto.UpdateMyProfileRequest;
 import com.hms.api.exception.BadRequestException;
 import com.hms.api.exception.ResourceNotFoundException;
 import com.hms.api.repository.AppointmentRepository;
@@ -117,6 +118,37 @@ public class PatientService {
 
         boolean maskContact = currentUser.getRole() == Role.DOCTOR;
         return PatientDto.fromEntity(saved, maskContact, clock);
+    }
+
+    @Transactional(readOnly = true)
+    public PatientDto getMyProfile(SecurityUser currentUser, String clientIp) {
+        Patient patient = patientRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for the current user"));
+
+        auditLogService.log(currentUser.getId(), "VIEW_PATIENT", "PATIENT", String.valueOf(patient.getId()), clientIp, null);
+        return PatientDto.fromEntity(patient, false, clock);
+    }
+
+    @Transactional
+    public PatientDto updateMyProfile(UpdateMyProfileRequest request, SecurityUser currentUser, String clientIp) {
+        Patient patient = patientRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found for the current user"));
+
+        // Email and all ids stay immutable on this endpoint.
+        patient.setFullName(request.fullName().trim());
+        if (request.phone() != null && !request.phone().isBlank()) {
+            patient.setPhone(request.phone().trim());
+        }
+        if (request.dateOfBirth() != null) {
+            patient.setDateOfBirth(request.dateOfBirth());
+        }
+        if (request.gender() != null) {
+            patient.setGender(request.gender());
+        }
+
+        Patient saved = patientRepository.save(patient);
+        auditLogService.log(currentUser.getId(), "UPDATE_PATIENT_PROFILE", "PATIENT", String.valueOf(saved.getId()), clientIp, null);
+        return PatientDto.fromEntity(saved, false, clock);
     }
 }
 

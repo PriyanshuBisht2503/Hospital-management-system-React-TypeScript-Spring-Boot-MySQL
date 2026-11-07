@@ -10,13 +10,18 @@ public record UserSummaryDto(
     Role role,
     String fullName,
     boolean enabled,
-    Long doctorId
+    Long doctorId,
+    Long patientId
 ) {
     public static UserSummaryDto fromEntity(User user) {
-        return fromEntity(user, null);
+        return fromEntity(user, null, null);
     }
 
     public static UserSummaryDto fromEntity(User user, Long doctorId) {
+        return fromEntity(user, doctorId, null);
+    }
+
+    public static UserSummaryDto fromEntity(User user, Long doctorId, Long patientId) {
         return new UserSummaryDto(
             user.getId(),
             user.getEmail(),
@@ -24,7 +29,8 @@ public record UserSummaryDto(
             user.getRole(),
             user.getFullName(),
             user.isEnabled(),
-            doctorId
+            doctorId,
+            patientId
         );
     }
 }

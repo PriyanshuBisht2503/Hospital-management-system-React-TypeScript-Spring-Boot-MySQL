@@ -207,6 +207,9 @@ public class AppointmentLifecycleService {
 
         if (currentUser.getRole() == Role.PATIENT) {
             verifyPatientMatch(a, currentUser);
+            if (a.getStatus() != AppointmentStatus.BOOKED && a.getStatus() != AppointmentStatus.CONFIRMED) {
+                throw new ConflictException("Patients can only cancel BOOKED or CONFIRMED appointments");
+            }
             if (clock.instant().isAfter(a.getStartTime())) {
                 throw new ConflictException("Patients cannot cancel appointments after the scheduled start time");
             }
@@ -227,6 +230,47 @@ public class AppointmentLifecycleService {
         auditLogService.log(currentUser.getId(), "CANCEL_APPOINTMENT", "APPOINTMENT", String.valueOf(id), clientIp, "Reason: " + request.reason().trim());
         boolean maskPatientContact = currentUser.getRole() == Role.DOCTOR;
         return AppointmentResponseDto.fromEntity(saved, maskPatientContact, clock);
+    }
+
+    /**
+     * Patient-only "my appointments": newest first, optional status and upcoming-only filters.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<AppointmentResponseDto> getMyAppointments(
+            AppointmentStatus status, Boolean upcoming, int page, int size, SecurityUser currentUser) {
+        int pageSize = (size <= 0) ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int pageNumber = Math.max(0, page);
+
+        Optional<Patient> patient = patientRepository.findByUserId(currentUser.getId());
+        if (patient.isEmpty()) {
+            return PageResponse.from(Page.empty(PageRequest.of(pageNumber, pageSize)));
+        }
+
+        Instant from = Boolean.TRUE.equals(upcoming) ? clock.instant() : null;
+        Page<Appointment> pageResult = appointmentRepository.searchAppointments(
+                null,
+                null,
+                status,
+                null,
+                patient.get().getId(),
+                from,
+                null,
+                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "startTime"))
+        );
+
+        Page<AppointmentResponseDto> dtoPage = pageResult.map(a -> AppointmentResponseDto.fromEntity(a, false, clock));
+        return PageResponse.from(dtoPage);
+    }
+
+    /**
+     * Reusable ownership assertion for endpoints that resolve the appointment in another service
+     * (e.g. reschedule). Keeps 404 cloaking identical to read access.
+     */
+    @Transactional(readOnly = true)
+    public void assertPatientOwnership(Long appointmentId, SecurityUser currentUser) {
+        Appointment a = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found: " + appointmentId));
+        verifyPatientMatch(a, currentUser);
     }
 
     private void verifyReadAccess(Appointment a, SecurityUser currentUser) {

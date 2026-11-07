@@ -3,6 +3,7 @@ package com.hms.api.web;
 import com.hms.api.dto.CreatePatientRequest;
 import com.hms.api.dto.PageResponse;
 import com.hms.api.dto.PatientDto;
+import com.hms.api.dto.UpdateMyProfileRequest;
 import com.hms.api.security.ClientIpResolver;
 import com.hms.api.security.SecurityUser;
 import com.hms.api.service.PatientService;
@@ -27,6 +28,29 @@ public class PatientController {
     public PatientController(PatientService patientService, ClientIpResolver clientIpResolver) {
         this.patientService = patientService;
         this.clientIpResolver = clientIpResolver;
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    @Operation(summary = "Get my patient profile", description = "Patient self-service profile. Audited with VIEW_PATIENT.")
+    public ResponseEntity<PatientDto> getMyProfile(
+            @AuthenticationPrincipal SecurityUser currentUser,
+            HttpServletRequest request
+    ) {
+        String clientIp = clientIpResolver.resolveClientIp(request);
+        return ResponseEntity.ok(patientService.getMyProfile(currentUser, clientIp));
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
+    @Operation(summary = "Update my patient profile", description = "Patients may edit full name, phone, date of birth and gender. Email and ids are immutable.")
+    public ResponseEntity<PatientDto> updateMyProfile(
+            @Valid @RequestBody UpdateMyProfileRequest updateRequest,
+            @AuthenticationPrincipal SecurityUser currentUser,
+            HttpServletRequest request
+    ) {
+        String clientIp = clientIpResolver.resolveClientIp(request);
+        return ResponseEntity.ok(patientService.updateMyProfile(updateRequest, currentUser, clientIp));
     }
 
     @GetMapping("/{id}")

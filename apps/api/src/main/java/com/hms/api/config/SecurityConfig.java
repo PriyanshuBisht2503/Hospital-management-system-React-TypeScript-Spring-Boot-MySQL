@@ -155,6 +155,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/patients", "/api/patients/**").hasAnyRole("ADMIN", "RECEPTIONIST")
                 .requestMatchers(HttpMethod.GET, "/api/patients").hasAnyRole("ADMIN", "RECEPTIONIST", "DOCTOR")
                 .requestMatchers(HttpMethod.GET, "/api/patients/*").hasAnyRole("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT")
+                .requestMatchers(HttpMethod.PUT, "/api/patients/me").hasRole("PATIENT")
+
+                // Patient self-service "my appointments" (token-derived identity)
+                .requestMatchers(HttpMethod.GET, "/api/appointments/me").hasRole("PATIENT")
 
                 // Appointments create
                 .requestMatchers(HttpMethod.POST, "/api/appointments", "/api/appointments/**").hasAnyRole("ADMIN", "RECEPTIONIST", "PATIENT")
